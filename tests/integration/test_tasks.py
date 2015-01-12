@@ -111,3 +111,49 @@ def test_api_update_order_in_bulk(client):
 
     assert response1.status_code == 204, response1.data
     assert response2.status_code == 204, response2.data
+
+
+def test_api_get_task_by_ref_ok(client):
+    user = f.UserFactory(is_superuser=True)
+    task = f.create_task(subject="test", owner=user)
+    task.ref = 123
+    task.save()
+    url = "{}?project={}&ref={}".format(reverse("tasks-by-ref"),
+                                        task.project_id,
+                                        task.ref)
+
+    client.login(task.owner)
+    response = client.get(url)
+
+    assert response.status_code == 200
+    assert response.data["id"] == task.id
+
+
+def test_api_get_task_by_ref_error_1(client):
+    user = f.UserFactory(is_superuser=True)
+    task = f.create_task(subject="test", owner=user)
+    task.ref = 123
+    task.save()
+    url = "{}?project={}&ref={}".format(reverse("tasks-by-ref"),
+                                        task.project_id,
+                                        task.ref * 2)
+
+    client.login(task.owner)
+    response = client.get(url)
+
+    assert response.status_code == 404
+
+
+def test_api_get_task_by_ref_error_1(client):
+    user = f.UserFactory(is_superuser=True)
+    task = f.create_task(subject="test", owner=user)
+    task.ref = 123
+    task.save()
+    url = "{}?project={}&ref={}".format(reverse("tasks-by-ref"),
+                                        task.project_id,
+                                        "undefined")
+
+    client.login(task.owner)
+    response = client.get(url)
+
+    assert response.status_code == 404

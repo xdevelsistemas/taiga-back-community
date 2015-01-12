@@ -15,7 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.utils.translation import ugettext_lazy as _
-from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.http import Http404
 
@@ -26,6 +25,7 @@ from taiga.base import filters, response
 from taiga.base import exceptions as exc
 from taiga.base.decorators import detail_route, list_route
 from taiga.base.api import ModelCrudViewSet, ModelListViewSet
+from taiga.base.api.utils import get_object_or_404
 from taiga.base import tags
 
 from taiga.users.models import User

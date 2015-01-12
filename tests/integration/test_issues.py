@@ -149,7 +149,6 @@ def test_api_filter_by_text_6(client):
     issue = f.create_issue(subject="test", owner=user)
     issue.ref = 123
     issue.save()
-    print(issue.ref, issue.subject)
     url = reverse("issues-list") + "?q=%s" % (issue.ref)
 
     client.login(issue.owner)
@@ -158,3 +157,49 @@ def test_api_filter_by_text_6(client):
 
     assert response.status_code == 200
     assert number_of_issues == 1
+
+
+def test_api_get_issue_by_ref_ok(client):
+    user = f.UserFactory(is_superuser=True)
+    issue = f.create_issue(subject="test", owner=user)
+    issue.ref = 123
+    issue.save()
+    url = "{}?project={}&ref={}".format(reverse("issues-by-ref"),
+                                        issue.project_id,
+                                        issue.ref)
+
+    client.login(issue.owner)
+    response = client.get(url)
+
+    assert response.status_code == 200
+    assert response.data["id"] == issue.id
+
+
+def test_api_get_issue_by_ref_error_1(client):
+    user = f.UserFactory(is_superuser=True)
+    issue = f.create_issue(subject="test", owner=user)
+    issue.ref = 123
+    issue.save()
+    url = "{}?project={}&ref={}".format(reverse("issues-by-ref"),
+                                        issue.project_id,
+                                        issue.ref * 2)
+
+    client.login(issue.owner)
+    response = client.get(url)
+
+    assert response.status_code == 404
+
+
+def test_api_get_issue_by_ref_error_1(client):
+    user = f.UserFactory(is_superuser=True)
+    issue = f.create_issue(subject="test", owner=user)
+    issue.ref = 123
+    issue.save()
+    url = "{}?project={}&ref={}".format(reverse("issues-by-ref"),
+                                        issue.project_id,
+                                        "undefined")
+
+    client.login(issue.owner)
+    response = client.get(url)
+
+    assert response.status_code == 404

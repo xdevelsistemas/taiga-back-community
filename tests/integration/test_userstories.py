@@ -239,3 +239,49 @@ def test_get_total_points(client):
     f.RolePointsFactory.create(user_story=us_mixed, role=role2, points=points2)
 
     assert us_mixed.get_total_points() == 1.0
+
+
+def test_api_get_userstory_by_ref_ok(client):
+    user = f.UserFactory(is_superuser=True)
+    userstory = f.create_userstory(subject="test", owner=user)
+    userstory.ref = 123
+    userstory.save()
+    url = "{}?project={}&ref={}".format(reverse("userstories-by-ref"),
+                                        userstory.project_id,
+                                        userstory.ref)
+
+    client.login(userstory.owner)
+    response = client.get(url)
+
+    assert response.status_code == 200
+    assert response.data["id"] == userstory.id
+
+
+def test_api_get_userstory_by_ref_error_1(client):
+    user = f.UserFactory(is_superuser=True)
+    userstory = f.create_userstory(subject="test", owner=user)
+    userstory.ref = 123
+    userstory.save()
+    url = "{}?project={}&ref={}".format(reverse("userstories-by-ref"),
+                                        userstory.project_id,
+                                        userstory.ref * 2)
+
+    client.login(userstory.owner)
+    response = client.get(url)
+
+    assert response.status_code == 404
+
+
+def test_api_get_userstory_by_ref_error_1(client):
+    user = f.UserFactory(is_superuser=True)
+    userstory = f.create_userstory(subject="test", owner=user)
+    userstory.ref = 123
+    userstory.save()
+    url = "{}?project={}&ref={}".format(reverse("userstories-by-ref"),
+                                        userstory.project_id,
+                                        "undefined")
+
+    client.login(userstory.owner)
+    response = client.get(url)
+
+    assert response.status_code == 404
