@@ -82,7 +82,7 @@ class WatchedModelMixin(models.Model):
     this mixin if you want send notifications about
     your model class.
     """
-    watchers = models.ManyToManyField(settings.AUTH_USER_MODEL, null=True, blank=True,
+    watchers = models.ManyToManyField(settings.AUTH_USER_MODEL,
                                       related_name="%(app_label)s_%(class)s+",
                                       verbose_name=_("watchers"))
     class Meta:

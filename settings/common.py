@@ -215,9 +215,14 @@ DEFAULT_FILE_STORAGE = "taiga.base.storage.FileSystemStorage"
 
 SECRET_KEY = "aw3+t2r(8(0kkrhg8)gx6i96v5^kv%6cfep9wxfom0%7dy0m9e"
 
-TEMPLATE_LOADERS = [
-    "django_jinja.loaders.AppLoader",
-    "django_jinja.loaders.FileSystemLoader",
+TEMPLATES = [
+    {
+        "BACKEND": "django_jinja.backend.Jinja2",
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "match_extension", ".jinja",
+        }
+    },
 ]
 
 MIDDLEWARE_CLASSES = [
