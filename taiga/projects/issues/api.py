@@ -163,6 +163,13 @@ class IssueViewSet(OCCResourceMixin, HistoryResourceMixin, WatchedResourceMixin,
         return self.retrieve(request, pk=issue.pk)
 
     @list_route(methods=["GET"])
+    def filters_data(self, request, *args, **kwargs):
+        project_id = request.QUERY_PARAMS.get("project", None)
+        project = get_object_or_404(Project, id=project_id)
+        queryset = self.filter_queryset(self.get_queryset())
+        return response.Ok(services.get_issues_filters_data(project, queryset))
+
+    @list_route(methods=["GET"])
     def csv(self, request):
         uuid = request.QUERY_PARAMS.get("uuid", None)
         if uuid is None:

@@ -25,6 +25,9 @@ from taiga.events import events
 
 from . import models
 
+from contextlib import closing
+from django.db import connection
+
 
 def get_userstories_from_bulk(bulk_data, **additional_fields):
     """Convert `bulk_data` into a list of user stories.
@@ -170,3 +173,93 @@ def userstories_to_csv(project,queryset):
         writer.writerow(row)
 
     return csv_data
+
+
+
+
+
+
+def _get_userstories_tags_with_count(project):
+    extra_sql = ("select unnest(tags) as tagname, count(unnest(tags)) "
+                 "from userstories_userstory where project_id = %s "
+                 "group by unnest(tags) "
+                 "order by tagname asc")
+
+    with closing(connection.cursor()) as cursor:
+        cursor.execute(extra_sql, [project.id])
+        rows = cursor.fetchall()
+
+    return rows
+
+
+def _get_userstories_statuses(project):
+    extra_sql = ("select status_id, count(status_id) from userstories_userstory "
+                 "where project_id = %s group by status_id;")
+
+    extra_sql = """
+    select id, (select count(*) from userstories_userstory
+                    where project_id = m.project_id and status_id = m.id)
+        from projects_userstorystatus as m
+        where project_id = %s order by m.order;
+    """
+
+    with closing(connection.cursor()) as cursor:
+        cursor.execute(extra_sql, [project.id])
+        rows = cursor.fetchall()
+
+    return rows
+
+
+def _get_userstories_assigned_to(project):
+    extra_sql = """
+    select null, (select count(*) from userstories_userstory
+                        where project_id = %s and assigned_to_id is null)
+    UNION select user_id, (select count(*) from userstories_userstory
+                        where project_id = pm.project_id and assigned_to_id = pm.user_id)
+        from projects_membership as pm
+        where project_id = %s and pm.user_id is not null;
+    """
+
+    with closing(connection.cursor()) as cursor:
+        cursor.execute(extra_sql, [project.id, project.id])
+        rows = cursor.fetchall()
+
+    return rows
+
+
+def _get_userstories_owners(project):
+    extra_sql = """
+    select user_id, (select count(*) from userstories_userstory
+                        where project_id = pm.project_id and owner_id = pm.user_id)
+        from projects_membership as pm
+        where project_id = %s and pm.user_id is not null;
+    """
+
+    with closing(connection.cursor()) as cursor:
+        cursor.execute(extra_sql, [project.id])
+        rows = cursor.fetchall()
+
+    return rows
+
+
+def get_userstories_filters_data(project, queryset):
+    """
+    Given a project and an userstories queryset, return a simple data structure
+    of all possible filters for the userstories in the queryset.
+    """
+    tags = []
+    for t_list in queryset.values_list("tags", flat=True):
+        if t_list is None:
+            continue
+        tags += list(t_list)
+
+    tags = (sorted(([e, tags.count(e)] for e in set(tags))))
+
+    data = {
+        "statuses": _get_userstories_statuses(project),
+        "assigned_to": _get_userstories_assigned_to(project),
+        "owners": _get_userstories_owners(project),
+        "tags": tags,
+    }
+
+    return data

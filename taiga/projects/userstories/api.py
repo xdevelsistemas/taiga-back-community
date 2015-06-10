@@ -101,6 +101,13 @@ class UserStoryViewSet(OCCResourceMixin, HistoryResourceMixin, WatchedResourceMi
         super().post_save(obj, created)
 
     @list_route(methods=["GET"])
+    def filters_data(self, request, *args, **kwargs):
+        project_id = request.QUERY_PARAMS.get("project", None)
+        project = get_object_or_404(Project, id=project_id)
+        queryset = self.filter_queryset(self.get_queryset())
+        return response.Ok(services.get_userstories_filters_data(project, queryset))
+
+    @list_route(methods=["GET"])
     def by_ref(self, request):
         ref = request.QUERY_PARAMS.get("ref", None)
         project_id = request.QUERY_PARAMS.get("project", None)

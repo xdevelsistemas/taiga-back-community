@@ -265,6 +265,29 @@ def test_get_total_points(client):
     assert us_mixed.get_total_points() == 1.0
 
 
+def test_api_filters_data(client):
+    user = f.UserFactory(is_superuser=True)
+    userstory1 = f.create_userstory(subject="test1", owner=user, tags=["tag1"])
+    project=userstory1.project
+    userstory2 = f.create_userstory(subject="test2", owner=user, tags=["tag2"], project=project)
+    userstory2 = f.create_userstory(subject="test3", owner=user, tags=["tag1", "tag2"], project=project)
+
+    client.login(user)
+
+    url = reverse("userstories-filters-data") + "?project=%s" % (project.id)
+    response = client.get(url)
+
+    assert response.status_code == 200
+    assert response.data["tags"] == [['tag1', 2], ['tag2', 2]]
+
+    url = reverse("userstories-filters-data") + "?project=%s&tags=%s" % (project.id, "tag1")
+    response = client.get(url)
+    number_of_userstorys = len(response.data)
+
+    assert response.status_code == 200
+    assert response.data["tags"] == [['tag1', 2], ['tag2', 1]]
+
+
 def test_get_invalid_csv(client):
     url = reverse("userstories-csv")
 

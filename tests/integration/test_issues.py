@@ -165,6 +165,29 @@ def test_api_filter_by_text_6(client):
     assert number_of_issues == 1
 
 
+def test_api_filters_data(client):
+    user = f.UserFactory(is_superuser=True)
+    issue1 = f.create_issue(subject="test1", owner=user, tags=["tag1"])
+    project=issue1.project
+    issue2 = f.create_issue(subject="test2", owner=user, tags=["tag2"], project=project)
+    issue2 = f.create_issue(subject="test3", owner=user, tags=["tag1", "tag2"], project=project)
+
+    client.login(user)
+
+    url = reverse("issues-filters-data") + "?project=%s" % (project.id)
+    response = client.get(url)
+
+    assert response.status_code == 200
+    assert response.data["tags"] == [['tag1', 2], ['tag2', 2]]
+
+    url = reverse("issues-filters-data") + "?project=%s&tags=%s" % (project.id, "tag1")
+    response = client.get(url)
+    number_of_issues = len(response.data)
+
+    assert response.status_code == 200
+    assert response.data["tags"] == [['tag1', 2], ['tag2', 1]]
+
+
 def test_get_invalid_csv(client):
     url = reverse("issues-csv")
 
