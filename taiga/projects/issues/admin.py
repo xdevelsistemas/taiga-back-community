@@ -21,9 +21,13 @@ from . import models
 
 
 class IssueAdmin(admin.ModelAdmin):
-    list_display = ["project", "milestone", "ref", "subject",]
-    list_display_links = ["ref", "subject",]
-    # inlines = [AttachmentInline]
+    list_display = ["id", "project", "ref", "subject",]
+    list_display_links = ["id", "ref", "subject",]
+    order_by = ["project", "ref"]
+    readonly_fields = ("created_date", "modified_date")
+    search_fields = ["id", "ref", "subject", "project__name", "project__slug"]
+
+    inlines = [AttachmentInline]
 
     def get_object(self, *args, **kwargs):
         self.obj = super().get_object(*args, **kwargs)
