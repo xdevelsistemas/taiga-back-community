@@ -21,14 +21,19 @@ from . import models
 
 
 class AttachmentAdmin(admin.ModelAdmin):
-    list_display = ["id", "project", "attached_file", "owner", "content_type", "content_object"]
+    list_display = ["id", "attached_file", "project", "owner", "content_type", "content_object"]
     list_display_links = ["id", "attached_file",]
-    list_filter = ["project", "content_type"]
+    list_filter = ["content_type"]
+    search_fields = ["id", "name", "project__name", "project__slug", "object_id"]
+    readonly_fields = ["project", "owner", "content_type", "content_object"]
+
+    def has_add_permission(self, request):
+        return False
 
 
 class AttachmentInline(generic.GenericTabularInline):
      model = models.Attachment
-     fields = ("attached_file", "owner")
+     fields = ("attached_file", "owner", "is_deprecated", "order", "description")
      extra = 0
 
 
