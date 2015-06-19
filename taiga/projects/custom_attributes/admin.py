@@ -24,6 +24,7 @@ from . import models
 class UserStoryCustomAttributeAdmin(admin.ModelAdmin):
     list_display = ["id", "name", "project", "order"]
     list_display_links = ["id", "name"]
+    order_by = ["project", "order"]
     fieldsets = (
         (None, {
             "fields": ("name", "description", ("project", "order"))
@@ -41,6 +42,7 @@ class UserStoryCustomAttributeAdmin(admin.ModelAdmin):
 class TaskCustomAttributeAdmin(admin.ModelAdmin):
     list_display = ["id", "name", "project", "order"]
     list_display_links = ["id", "name"]
+    order_by = ["project", "order"]
     fieldsets = (
         (None, {
             "fields": ("name", "description", ("project", "order"))
@@ -58,6 +60,7 @@ class TaskCustomAttributeAdmin(admin.ModelAdmin):
 class IssueCustomAttributeAdmin(admin.ModelAdmin):
     list_display = ["id", "name", "project", "order"]
     list_display_links = ["id", "name"]
+    order_by = ["project", "order"]
     fieldsets = (
         (None, {
             "fields": ("name", "description", ("project", "order"))
