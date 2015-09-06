@@ -14,7 +14,7 @@ msgstr ""
 "Project-Id-Version: taiga-back\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2015-06-15 12:34+0200\n"
-"PO-Revision-Date: 2015-06-17 08:05+0000\n"
+"PO-Revision-Date: 2015-06-29 10:23+0000\n"
 "Last-Translator: Regina <r.raaf@metatexx.de>\n"
 "Language-Team: German (http://www.transifex.com/projects/p/taiga-back/"
 "language/de/)\n"
@@ -65,7 +65,7 @@ msgstr "Der Benutzer ist schon registriert."
 
 #: taiga/auth/services.py:146
 msgid "Membership with user is already exists."
-msgstr "Der Benutzer für diese Mitgliedschaft, existiert bereits."
+msgstr "Der Benutzer für diese Mitgliedschaft existiert bereits."
 
 #: taiga/auth/services.py:172
 msgid "Error on creating new user."
@@ -265,7 +265,7 @@ msgstr "Es gab keine Eingabe"
 #: taiga/base/api/serializers.py:548
 msgid "Cannot create a new item, only existing items may be updated."
 msgstr ""
-"Es können nur existierende Einträge aktualisiertwerden. Eine Neuerstellung "
+"Es können nur existierende Einträge aktualisiert werden. Eine Neuerstellung "
 "ist nicht möglich."
 
 #: taiga/base/api/serializers.py:559
@@ -337,7 +337,7 @@ msgstr "Nicht gefunden."
 
 #: taiga/base/exceptions.py:130
 msgid "Method not supported for this endpoint."
-msgstr ""
+msgstr "Methode wird für diesen Endpunkt nicht unterstützt. "
 
 #: taiga/base/exceptions.py:138 taiga/base/exceptions.py:146
 msgid "Wrong arguments."
@@ -349,7 +349,7 @@ msgstr "Fehler bei Datenüberprüfung "
 
 #: taiga/base/exceptions.py:162
 msgid "Integrity Error for wrong or invalid arguments"
-msgstr ""
+msgstr "Integritätsfehler wegen falscher oder ungültiger Argumente"
 
 #: taiga/base/exceptions.py:169
 msgid "Precondition error"
@@ -357,7 +357,7 @@ msgstr "Voraussetzungsfehler"
 
 #: taiga/base/filters.py:74
 msgid "Error in filter params types."
-msgstr ""
+msgstr "Fehler in Filter Parameter Typen."
 
 #: taiga/base/filters.py:121 taiga/base/filters.py:210
 #: taiga/base/filters.py:259
@@ -434,6 +434,22 @@ msgid ""
 "                                                    </a>\n"
 "                                                    "
 msgstr ""
+"\n"
+" <strong>Taiga Support:</strong>\n"
+" <a href=\"%(support_url)s\" title=\"Support page\" style=\"color: #9dce0a\">"
+"%(support_url)s</a>\n"
+" <br>\n"
+" <strong>Kontaktieren Sie uns:</strong>\n"
+" <a href=\"mailto:%(support_email)s\" title=\"Supporti email\" style="
+"\"color: #9dce0a\">\n"
+" %(support_email)s\n"
+" </a>\n"
+" <br>\n"
+" <strong>Mailing list:</strong>\n"
+" <a href=\"%(mailing_list_url)s\" title=\"Mailing list\" style=\"color: "
+"#9dce0a\">\n"
+" %(mailing_list_url)s\n"
+" </a> "
 
 #: taiga/base/templates/emails/hero-body-html.jinja:6
 msgid "You have been Taigatized"
@@ -470,6 +486,10 @@ msgid ""
 "%(comment)s</p>\n"
 "                                                                    "
 msgstr ""
+"\n"
+"<h3>Kommentar:</h3>\n"
+"<p>%(comment)s</p>\n"
+" "
 
 #: taiga/base/templates/emails/updates-body-text.jinja:6
 #, python-format
@@ -536,7 +556,7 @@ msgstr "Fehler beim Importieren der Tickets"
 
 #: taiga/export_import/dump_service.py:169
 msgid "error importing user stories"
-msgstr "Fehler beim Importieren der User Stories"
+msgstr "Fehler beim Importieren der User-Stories"
 
 #: taiga/export_import/dump_service.py:174
 msgid "error importing tasks"
@@ -569,7 +589,7 @@ msgstr "Enthält ungültige Benutzerfelder."
 #: taiga/projects/serializers.py:66 taiga/projects/serializers.py:92
 #: taiga/projects/serializers.py:122 taiga/projects/serializers.py:164
 msgid "Name duplicated for the project"
-msgstr ""
+msgstr "Der Name für das Projekt ist doppelt vergeben"
 
 #: taiga/export_import/tasks.py:49 taiga/export_import/tasks.py:50
 msgid "Error generating project dump"
@@ -594,6 +614,16 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Projekt Export Datei wurde erstellt</h1>\n"
+"<p>Hallo %(user)s,</p>\n"
+"<h3>Ihre Export Datei von Projekt %(project)s wurde korrekt erstellt.</h3>\n"
+"<p>Sie können sie hier herunterladen:</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"Download the dump file\">Export "
+"Datei herunterladen</a>\n"
+"<p>Diese Datei wird gelöscht am %(deletion_date)s.</p>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+" "
 
 #: taiga/export_import/templates/emails/dump_project-body-text.jinja:1
 #, python-format
@@ -611,6 +641,19 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Hallo %(user)s,\n"
+"\n"
+"Ihre Export Datei von Projekt %(project)s wurde korrekt erstellt. Sie können "
+"sie hier herunterladen:\n"
+"\n"
+"%(url)s\n"
+"\n"
+"Diese Datei wird gelöscht am %(deletion_date)s.\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/export_import/templates/emails/dump_project-subject.jinja:1
 #, python-format
@@ -631,6 +674,16 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>%(error_message)s</h1>\n"
+"<p>Hallo %(user)s,</p>\n"
+"<p>Ihr Projekt %(project)s wurde nicht korrekt importiert.</p>\n"
+"<p>Die Taiga System Administratoren wurden informiert.<br/> Bitte versuchen "
+"Sie es erneut oder kontaktieren Sie das Support Team unter\n"
+"<a href=\"mailto:%(support_email)s\" title=\"Support email\" style=\"color: "
+"#699b05\">%(support_email)s</a></p>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+" "
 
 #: taiga/export_import/templates/emails/export_error-body-text.jinja:1
 #, python-format
@@ -648,6 +701,20 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Hallo %(user)s,\n"
+"\n"
+"%(error_message)s\n"
+"Ihr Projekt %(project)s wurde nicht korrekt importiert.\n"
+"\n"
+"Die Taiga System Administratoren wurden informiert.\n"
+"\n"
+"Bitte versuchen Sie es erneut oder kontaktieren Sie das Support Team unter "
+"%(support_email)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/export_import/templates/emails/export_error-subject.jinja:1
 #, python-format
@@ -668,6 +735,17 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>%(error_message)s</h1>\n"
+"<p>Hallo %(user)s,</p>\n"
+"<p>Ihr Projekt wurde nicht korrekt importiert.</p>\n"
+"<p>Die Taiga System Administratoren wurden informiert.<br/> Bitte versuchen "
+"Sie es erneut oder kontaktieren Sie das Support Team unter\n"
+"<a href=\"mailto:%(support_email)s\" title=\"Support email\" style=\"color: "
+"#699b05\">%(support_email)s</a></p>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+"\n"
+" "
 
 #: taiga/export_import/templates/emails/import_error-body-text.jinja:1
 #, python-format
@@ -718,6 +796,15 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Projekt Export-Datei wurde importiert</h1>\n"
+"<p>Hallo %(user)s,</p>\n"
+"<h3>Ihre Projekt Export-Datei wurde korrekt importiert.</h3>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"Go to the project %(project)s"
+"\">Gehe zu %(project)s</a>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+"\n"
+" "
 
 #: taiga/export_import/templates/emails/load_dump-body-text.jinja:1
 #, python-format
@@ -734,6 +821,18 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Hallo %(user)s,\n"
+"\n"
+"Ihre Projekt Export-Datei wurde korrekt importiert.\n"
+"\n"
+"Sie können das Projekt %(project)s hier sehen:\n"
+"\n"
+"%(url)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/export_import/templates/emails/load_dump-subject.jinja:1
 #, python-format
@@ -781,6 +880,10 @@ msgid ""
 "    <p>%(comment)s</p>\n"
 "    "
 msgstr ""
+"\n"
+"<h3>Kommentar</h3>\n"
+"<p>%(comment)s</p>\n"
+" "
 
 #: taiga/feedback/templates/emails/feedback_notification-body-html.jinja:18
 #: taiga/users/admin.py:51
@@ -797,6 +900,12 @@ msgid ""
 "%(comment)s\n"
 "---------"
 msgstr ""
+"---------\n"
+"- Von: %(full_name)s <%(email)s>\n"
+"---------\n"
+"- Kommentar:\n"
+"%(comment)s\n"
+"---------"
 
 #: taiga/feedback/templates/emails/feedback_notification-body-text.jinja:8
 msgid "- Extra info:"
@@ -808,10 +917,13 @@ msgid ""
 "\n"
 "[Taiga] Feedback from %(full_name)s <%(email)s>\n"
 msgstr ""
+"\n"
+"[Taiga] Feedback von %(full_name)s <%(email)s>\n"
+"   \n"
 
 #: taiga/hooks/api.py:52
 msgid "The payload is not a valid json"
-msgstr ""
+msgstr "Die Nutzlast ist kein gültiges json"
 
 #: taiga/hooks/api.py:61
 msgid "The project doesn't exist"
@@ -819,15 +931,15 @@ msgstr "Das Projekt existiert nicht"
 
 #: taiga/hooks/api.py:64
 msgid "Bad signature"
-msgstr ""
+msgstr "Falsche Signatur"
 
 #: taiga/hooks/bitbucket/api.py:40
 msgid "The payload is not a valid application/x-www-form-urlencoded"
-msgstr ""
+msgstr "Die Nutzlast ist eine ungültige Anwendung/x-www-form-urlencoded"
 
 #: taiga/hooks/bitbucket/event_hooks.py:45
 msgid "The payload is not valid"
-msgstr ""
+msgstr "Die Nutzlast ist ungültig"
 
 #: taiga/hooks/bitbucket/event_hooks.py:81
 #: taiga/hooks/github/event_hooks.py:76 taiga/hooks/gitlab/event_hooks.py:74
@@ -897,6 +1009,12 @@ msgid ""
 "\n"
 "{message}"
 msgstr ""
+"Kommentar von [@{github_user_name}]({github_user_url} \"See "
+"@{github_user_name}'s GitHub profile\") von GitHub.\n"
+"Origin GitHub issue: [gh#{number} - {subject}]({github_url} \"Go to "
+"'gh#{number} - {subject}'\")\n"
+"\n"
+"{message}"
 
 #: taiga/hooks/github/event_hooks.py:212
 #, python-brace-format
@@ -905,6 +1023,9 @@ msgid ""
 "\n"
 "{message}"
 msgstr ""
+"Kommentar von GitHub:\n"
+"\n"
+"{message}"
 
 #: taiga/hooks/gitlab/event_hooks.py:87
 msgid "Status changed from GitLab commit"
@@ -926,7 +1047,7 @@ msgstr "Meilensteine ansehen"
 
 #: taiga/permissions/permissions.py:23 taiga/permissions/permissions.py:33
 msgid "View user stories"
-msgstr "User Stories ansehen. "
+msgstr "User-Stories ansehen. "
 
 #: taiga/permissions/permissions.py:24 taiga/permissions/permissions.py:36
 #: taiga/permissions/permissions.py:64
@@ -958,11 +1079,11 @@ msgstr "Mitgliedschaft beantragen"
 
 #: taiga/permissions/permissions.py:40
 msgid "Add user story to project"
-msgstr "User Story zu Projekt hinzufügen"
+msgstr "User-Story zu Projekt hinzufügen"
 
 #: taiga/permissions/permissions.py:41
 msgid "Add comments to user stories"
-msgstr "Kommentar zu User Stories hinzufügen"
+msgstr "Kommentar zu User-Stories hinzufügen"
 
 #: taiga/permissions/permissions.py:42
 msgid "Add comments to tasks"
@@ -1006,19 +1127,19 @@ msgstr "Meilenstein löschen"
 
 #: taiga/permissions/permissions.py:59
 msgid "View user story"
-msgstr "User Story ansehen"
+msgstr "User-Story ansehen"
 
 #: taiga/permissions/permissions.py:60
 msgid "Add user story"
-msgstr "User Story hinzufügen"
+msgstr "User-Story hinzufügen"
 
 #: taiga/permissions/permissions.py:61
 msgid "Modify user story"
-msgstr "User Story ändern"
+msgstr "User-Story ändern"
 
 #: taiga/permissions/permissions.py:62
 msgid "Delete user story"
-msgstr "User Story löschen"
+msgstr "User-Story löschen"
 
 #: taiga/permissions/permissions.py:65
 msgid "Add task"
@@ -1441,7 +1562,7 @@ msgstr "Es gibt keinen Sprint mit dieser id"
 
 #: taiga/projects/mixins/blocked.py:29
 msgid "is blocked"
-msgstr "ist gesperrt"
+msgstr "wird blockiert"
 
 #: taiga/projects/mixins/ordering.py:47
 #, python-brace-format
@@ -1482,7 +1603,7 @@ msgstr "voreingestellte Punkte"
 
 #: taiga/projects/models.py:97
 msgid "default US status"
-msgstr "voreingesteller User Story Status "
+msgstr "voreingesteller User-Story Status "
 
 #: taiga/projects/models.py:101
 msgid "default task status"
@@ -1562,7 +1683,7 @@ msgstr "Tag Farben"
 
 #: taiga/projects/models.py:339
 msgid "modules config"
-msgstr ""
+msgstr "Module konfigurieren"
 
 #: taiga/projects/models.py:358
 msgid "is archived"
@@ -1593,7 +1714,7 @@ msgstr "Vorgabe Optionen"
 
 #: taiga/projects/models.py:584
 msgid "us statuses"
-msgstr "User Story Status "
+msgstr "User-Story Status "
 
 #: taiga/projects/models.py:585 taiga/projects/userstories/models.py:40
 #: taiga/projects/userstories/models.py:72
@@ -1673,6 +1794,14 @@ msgid ""
 "%(subject)s in Taiga\">See issue</a>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Ticket aktualisiert</h1>\n"
+"<p>Hallo %(user)s, <br> %(changer)s hat ein Ticket aktualisiert in "
+"%(project)s</p>\n"
+"<p>Issue #%(ref)s %(subject)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"See Issue #%(ref)s: %(subject)s "
+"in Taiga\">Ticket ansehen</a>\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/issues/issue-change-body-text.jinja:3
 #, python-format
@@ -1682,6 +1811,11 @@ msgid ""
 "Hello %(user)s, %(changer)s has updated an issue on %(project)s\n"
 "See issue #%(ref)s %(subject)s at %(url)s\n"
 msgstr ""
+"\n"
+"Ticket aktualisiert\n"
+"Hallo %(user)s, %(changer)s hat ein Ticket aktualisiert in %(project)s\n"
+"Ticket ansehen #%(ref)s %(subject)s auf %(url)s   \n"
+"    \n"
 
 #: taiga/projects/notifications/templates/emails/issues/issue-change-subject.jinja:1
 #, python-format
@@ -1689,6 +1823,9 @@ msgid ""
 "\n"
 "[%(project)s] Updated the issue #%(ref)s \"%(subject)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] aktualisierte das Ticket #%(ref)s \"%(subject)s\"\n"
+"  \n"
 
 #: taiga/projects/notifications/templates/emails/issues/issue-create-body-html.jinja:4
 #, python-format
@@ -1703,6 +1840,15 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Neues Ticket wurde erstellt</h1>\n"
+"<p>Hallo %(user)s,<br />%(changer)s hat ein neues Ticket erstellt in "
+"%(project)s</p>\n"
+"<p>Ticket #%(ref)s %(subject)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"See Issue #%(ref)s %(subject)s"
+"\">Ticket ansehen</a>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/issues/issue-create-body-text.jinja:1
 #, python-format
@@ -1715,6 +1861,13 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Neues Ticket wurde erstellt\n"
+"Hallo %(user)s, %(changer)s hat ein neues Ticket erstellt in %(project)s\n"
+"Ticket ansehen #%(ref)s %(subject)s auf %(url)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
 
 #: taiga/projects/notifications/templates/emails/issues/issue-create-subject.jinja:1
 #, python-format
@@ -1722,6 +1875,9 @@ msgid ""
 "\n"
 "[%(project)s] Created the issue #%(ref)s \"%(subject)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] erstellte das Ticket #%(ref)s \"%(subject)s\"\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/issues/issue-delete-body-html.jinja:4
 #, python-format
@@ -1734,6 +1890,13 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Ticket gelöscht</h1>\n"
+"<p>Hallo %(user)s,<br />%(changer)s hat ein Ticket gelöscht in %(project)s</"
+"p>\n"
+"<p>Ticket #%(ref)s %(subject)s</p>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/issues/issue-delete-body-text.jinja:1
 #, python-format
@@ -1746,6 +1909,14 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Ticket gelöscht\n"
+"Hallo %(user)s, %(changer)s hat ein Ticket gelöscht in %(project)s\n"
+"Ticket #%(ref)s %(subject)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/issues/issue-delete-subject.jinja:1
 #, python-format
@@ -1753,6 +1924,10 @@ msgid ""
 "\n"
 "[%(project)s] Deleted the issue #%(ref)s \"%(subject)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] löschte das Ticket #%(ref)s \"%(subject)s\"\n"
+" \n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/milestones/milestone-change-body-html.jinja:4
 #, python-format
@@ -1766,6 +1941,14 @@ msgid ""
 "Taiga\">See sprint</a>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Sprint wurde aktualisiert</h1>\n"
+"<p>Hallo %(user)s, <br> %(changer)s hat einen Sprint aktualisiert in "
+"%(project)s</p>\n"
+"<p>Sprint %(name)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"See Sprint: %(name)s in Taiga"
+"\">Sprint ansehen</a>\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/milestones/milestone-change-body-text.jinja:3
 #, python-format
@@ -1775,6 +1958,11 @@ msgid ""
 "Hello %(user)s, %(changer)s has updated a sprint on %(project)s\n"
 "See sprint %(name)s at %(url)s\n"
 msgstr ""
+"\n"
+"Sprint aktualisiert\n"
+"Hallo %(user)s, %(changer)s hat einen Sprint aktualisiert in %(project)s\n"
+"Sprint ansehen %(name)s auf %(url)s \n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/milestones/milestone-change-subject.jinja:1
 #, python-format
@@ -1782,6 +1970,9 @@ msgid ""
 "\n"
 "[%(project)s] Updated the sprint \"%(milestone)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] aktualisierte den Sprint \"%(milestone)s\"\n"
+" \n"
 
 #: taiga/projects/notifications/templates/emails/milestones/milestone-create-body-html.jinja:4
 #, python-format
@@ -1796,6 +1987,15 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Neuer Sprint wurde erstellt</h1>\n"
+"<p>Hallo %(user)s,<br />%(changer)s hat einen neuen Sprint erstellt in "
+"%(project)s</p>\n"
+"<p>Sprint %(name)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"See Sprint %(name)s\">See "
+"sprint</a>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/milestones/milestone-create-body-text.jinja:1
 #, python-format
@@ -1808,6 +2008,14 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Neuer Sprint wurde erstellt\n"
+"Hallo %(user)s, %(changer)s hat einen neuen Sprint erstellt in %(project)s\n"
+"Sprint ansehen %(name)s at %(url)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+" \n"
 
 #: taiga/projects/notifications/templates/emails/milestones/milestone-create-subject.jinja:1
 #, python-format
@@ -1815,6 +2023,9 @@ msgid ""
 "\n"
 "[%(project)s] Created the sprint \"%(milestone)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] erstellte den Sprint \"%(milestone)s\"\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/milestones/milestone-delete-body-html.jinja:4
 #, python-format
@@ -1827,6 +2038,13 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Sprint wurde gelöscht</h1>\n"
+"<p>Hallo %(user)s,<br />%(changer)s hat einen Sprint gelöscht in "
+"%(project)s</p>\n"
+"<p>Sprint %(name)s</p>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/milestones/milestone-delete-body-text.jinja:1
 #, python-format
@@ -1839,6 +2057,14 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Sprint wurde gelöscht\n"
+"Hallo %(user)s, %(changer)s hat einen Sprint gelöscht in %(project)s\n"
+"Sprint %(name)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/milestones/milestone-delete-subject.jinja:1
 #, python-format
@@ -1846,6 +2072,9 @@ msgid ""
 "\n"
 "[%(project)s] Deleted the Sprint \"%(milestone)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] löschte den Sprint \"%(milestone)s\"\n"
+" \n"
 
 #: taiga/projects/notifications/templates/emails/tasks/task-change-body-html.jinja:4
 #, python-format
@@ -1859,6 +2088,15 @@ msgid ""
 "%(subject)s in Taiga\">See task</a>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Aufgabe aktualisiert</h1>\n"
+"<p>Hallo %(user)s, <br> %(changer)s hat eine Aufgabe aktualisiert in "
+"%(project)s</p>\n"
+"<p>Aufgabe #%(ref)s %(subject)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"See Task #%(ref)s: %(subject)s "
+"in Taiga\">Aufgabe ansehen</a> \n"
+"\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/tasks/task-change-body-text.jinja:3
 #, python-format
@@ -1868,6 +2106,11 @@ msgid ""
 "Hello %(user)s, %(changer)s has updated a task on %(project)s\n"
 "See task #%(ref)s %(subject)s at %(url)s\n"
 msgstr ""
+"\n"
+"Aufgabe aktualisiert\n"
+"Hallo %(user)s, %(changer)s hat eine Aufgabe aktualisiert in %(project)s\n"
+"Aufgabe ansehen #%(ref)s %(subject)s auf %(url)s\n"
+" \n"
 
 #: taiga/projects/notifications/templates/emails/tasks/task-change-subject.jinja:1
 #, python-format
@@ -1875,6 +2118,8 @@ msgid ""
 "\n"
 "[%(project)s] Updated the task #%(ref)s \"%(subject)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] aktualisierte die Aufgabe #%(ref)s \"%(subject)s\"\n"
 
 #: taiga/projects/notifications/templates/emails/tasks/task-create-body-html.jinja:4
 #, python-format
@@ -1889,6 +2134,15 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Neue Aufgabe wurde erstellt</h1>\n"
+"<p>Hallo %(user)s,<br />%(changer)s hat eine neue Aufgabe erstellt in "
+"%(project)s</p>\n"
+"<p>Aufgabe #%(ref)s %(subject)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"See Task #%(ref)s %(subject)s"
+"\">Aufgabe ansehen</a>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/tasks/task-create-body-text.jinja:1
 #, python-format
@@ -1901,6 +2155,15 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Neue Aufgabe wurde erstellt\n"
+"Hallo %(user)s, %(changer)s hat eine neue Aufgabe erstellt in %(project)s\n"
+"Aufgabe ansehen #%(ref)s %(subject)s auf %(url)s\n"
+"\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/tasks/task-create-subject.jinja:1
 #, python-format
@@ -1908,6 +2171,9 @@ msgid ""
 "\n"
 "[%(project)s] Created the task #%(ref)s \"%(subject)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] erstellte die Aufgabe #%(ref)s \"%(subject)s\"\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/tasks/task-delete-body-html.jinja:4
 #, python-format
@@ -1920,6 +2186,13 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Aufgabe wurde gelöscht</h1>\n"
+"<p>Hallo %(user)s,<br />%(changer)s hat eine Aufgabe gelöscht in "
+"%(project)s</p>\n"
+"<p>Aufgabe #%(ref)s %(subject)s</p>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/tasks/task-delete-body-text.jinja:1
 #, python-format
@@ -1932,6 +2205,14 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Aufgabe wurde gelöscht\n"
+"Hallo %(user)s, %(changer)s hat eine Aufgabe gelöscht in %(project)s\n"
+"Aufgabe #%(ref)s %(subject)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+" \n"
 
 #: taiga/projects/notifications/templates/emails/tasks/task-delete-subject.jinja:1
 #, python-format
@@ -1939,6 +2220,9 @@ msgid ""
 "\n"
 "[%(project)s] Deleted the task #%(ref)s \"%(subject)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] hat die Aufgabe gelöscht #%(ref)s \"%(subject)s\"\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/userstories/userstory-change-body-html.jinja:4
 #, python-format
@@ -1952,6 +2236,15 @@ msgid ""
 "%(subject)s in Taiga\">See user story</a>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>User-Story wurde aktualisiert</h1>\n"
+"<p>Hallo %(user)s, <br> %(changer)s hat eine User-Story aktualisiert in "
+"%(project)s</p>\n"
+"<p>User-Story #%(ref)s %(subject)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"See User Story #%(ref)s: "
+"%(subject)s in Taiga\">User-Story ansehen</a>\n"
+"\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/userstories/userstory-change-body-text.jinja:3
 #, python-format
@@ -1961,6 +2254,11 @@ msgid ""
 "Hello %(user)s, %(changer)s has updated a user story on %(project)s\n"
 "See user story #%(ref)s %(subject)s at %(url)s\n"
 msgstr ""
+"\n"
+"User-Story wurde aktualisiert\n"
+"Hallo %(user)s, %(changer)s hat eine User-Story aktualisiert in %(project)s\n"
+"User-Story ansehen #%(ref)s %(subject)s auf %(url)s\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/userstories/userstory-change-subject.jinja:1
 #, python-format
@@ -1968,6 +2266,8 @@ msgid ""
 "\n"
 "[%(project)s] Updated the US #%(ref)s \"%(subject)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] aktualisierte die User-Story #%(ref)s \"%(subject)s\"\n"
 
 #: taiga/projects/notifications/templates/emails/userstories/userstory-create-body-html.jinja:4
 #, python-format
@@ -1982,6 +2282,16 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Neue User-Story wurde erstellt</h1>\n"
+"<p>Hallo %(user)s,<br />%(changer)s hat eine neue User-Story erstellt in "
+"%(project)s</p>\n"
+"<p>User-Story #%(ref)s %(subject)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"See User Story #%(ref)s "
+"%(subject)s\">User-Story ansehen</a>\n"
+" <p><small>Das Taiga Team</small></p>\n"
+"\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/userstories/userstory-create-body-text.jinja:1
 #, python-format
@@ -1994,6 +2304,15 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Neue User-Story wurde erstellt\n"
+"Hallo %(user)s, %(changer)s hat eine neue User-Story erstellt in "
+"%(project)s\n"
+"User-Story ansehen #%(ref)s %(subject)s auf %(url)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/userstories/userstory-create-subject.jinja:1
 #, python-format
@@ -2001,6 +2320,9 @@ msgid ""
 "\n"
 "[%(project)s] Created the US #%(ref)s \"%(subject)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] erstellte die User-Story #%(ref)s \"%(subject)s\"\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/userstories/userstory-delete-body-html.jinja:4
 #, python-format
@@ -2013,6 +2335,14 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>User-Story wurde gelöscht</h1>\n"
+"<p>Hallo %(user)s,<br />%(changer)s hat eine User-Story gelöscht in "
+"%(project)s</p>\n"
+"<p>User-Story #%(ref)s %(subject)s</p>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+"\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/userstories/userstory-delete-body-text.jinja:1
 #, python-format
@@ -2025,6 +2355,14 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"User-Story wurde gelöscht\n"
+"Hallo %(user)s, %(changer)s hat eine User-Story gelöscht in %(project)s\n"
+"User-Story #%(ref)s %(subject)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/userstories/userstory-delete-subject.jinja:1
 #, python-format
@@ -2032,6 +2370,9 @@ msgid ""
 "\n"
 "[%(project)s] Deleted the US #%(ref)s \"%(subject)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] löschte die User-Story #%(ref)s \"%(subject)s\"\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/wiki/wikipage-change-body-html.jinja:4
 #, python-format
@@ -2045,6 +2386,15 @@ msgid ""
 "\">See Wiki Page</a>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Wiki Seite wurde aktualisiert</h1>\n"
+"<p>Hallo %(user)s, <br> %(changer)s hat eine Wiki Seite aktualisiert in "
+"%(project)s</p>\n"
+"<p>Wiki Seite %(page)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"See wiki page in Taiga\">Wiki "
+"Seite ansehen</a>\n"
+"\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/wiki/wikipage-change-body-text.jinja:3
 #, python-format
@@ -2056,6 +2406,13 @@ msgid ""
 "\n"
 "See wiki page %(page)s at %(url)s\n"
 msgstr ""
+"\n"
+"Wiki Seite wurde aktualisiert\n"
+"\n"
+"Hallo %(user)s, %(changer)s hat eine Wiki Seite aktualisiert in %(project)s\n"
+"\n"
+"Wiki Seite ansehen %(page)s auf %(url)s\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/wiki/wikipage-change-subject.jinja:1
 #, python-format
@@ -2063,6 +2420,9 @@ msgid ""
 "\n"
 "[%(project)s] Updated the Wiki Page \"%(page)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] aktualisierte die Wiki Seite \"%(page)s\"\n"
+" \n"
 
 #: taiga/projects/notifications/templates/emails/wiki/wikipage-create-body-html.jinja:4
 #, python-format
@@ -2077,6 +2437,16 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Neue Wiki Seite wurde erstellt</h1>\n"
+"<p>Hallo %(user)s,<br />%(changer)s hat eine neue Wiki Seite erstellt in "
+"%(project)s</p>\n"
+"<p>Wiki Seite %(page)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"Wiki page %(page)s\">Wiki Seite "
+"ansehen</a>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+"\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/wiki/wikipage-create-body-text.jinja:1
 #, python-format
@@ -2091,6 +2461,17 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Neue Wiki Seite wurde erstellt\n"
+"\n"
+"Hallo %(user)s, %(changer)s hat eine neue Wiki Seite erstellt in "
+"%(project)s\n"
+"\n"
+"Wiki Seite ansehen %(page)s auf %(url)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/wiki/wikipage-create-subject.jinja:1
 #, python-format
@@ -2098,6 +2479,9 @@ msgid ""
 "\n"
 "[%(project)s] Created the Wiki Page \"%(page)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] erstetllte die Wiki Seite \"%(page)s\"\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/wiki/wikipage-delete-body-html.jinja:4
 #, python-format
@@ -2110,6 +2494,14 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Wiki Seite wurde gelöscht</h1>\n"
+"<p>Hallo %(user)s,<br />%(changer)s hat eine Wiki Seite gelöscht in "
+"%(project)s</p>\n"
+"<p>Wiki Seite %(page)s</p>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+"\n"
+" "
 
 #: taiga/projects/notifications/templates/emails/wiki/wikipage-delete-body-text.jinja:1
 #, python-format
@@ -2124,6 +2516,16 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Wiki Seite wurde gelöscht\n"
+"\n"
+"Hallo %(user)s, %(changer)s hat eine Wiki Seite gelöscht in %(project)s\n"
+"\n"
+"Wiki Seite %(page)s\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/projects/notifications/templates/emails/wiki/wikipage-delete-subject.jinja:1
 #, python-format
@@ -2131,6 +2533,9 @@ msgid ""
 "\n"
 "[%(project)s] Deleted the Wiki Page \"%(page)s\"\n"
 msgstr ""
+"\n"
+"[%(project)s] löschte die Wiki Seite \"%(page)s\"\n"
+"\n"
 
 #: taiga/projects/notifications/validators.py:44
 msgid "Watchers contains invalid users"
@@ -2142,7 +2547,7 @@ msgstr "Die Watcher beinhalten einen ungültigen Benutzer"
 
 #: taiga/projects/occ/mixins.py:58
 msgid "The version parameter is not valid"
-msgstr ""
+msgstr "Der Versionsparameter ist ungültig"
 
 #: taiga/projects/occ/mixins.py:74
 msgid "The version doesn't match with the current one"
@@ -2251,6 +2656,14 @@ msgid ""
 "Management Tool.</p>\n"
 "    "
 msgstr ""
+"\n"
+"<h2>Sie wurden zu Taiga eingeladen!</h2>\n"
+"<p>Hi! %(full_name)s hat Sie eingeladen, an folgendem Projekt in Taiga "
+"teilzunehmen <em> %(project)s </em>\n"
+"</br> Taiga ist ein kostenloses, quelloffenes, agiles Projekt Management "
+"Tool.</p>\n"
+"\n"
+" "
 
 #: taiga/projects/templates/emails/membership_invitation-body-html.jinja:17
 #, python-format
@@ -2308,6 +2721,11 @@ msgid ""
 msgstr ""
 "\n"
 "\n"
+"---\n"
+"\n"
+"Das Taiga Team\n"
+" \n"
+"\n"
 
 #: taiga/projects/templates/emails/membership_invitation-subject.jinja:1
 #, python-format
@@ -2315,6 +2733,9 @@ msgid ""
 "\n"
 "[Taiga] Invitation to join to the project '%(project)s'\n"
 msgstr ""
+"\n"
+"[Taiga] Einladung zur Teilnahme am Projekt '%(project)s'\n"
+"\n"
 
 #: taiga/projects/templates/emails/membership_notification-body-html.jinja:4
 #, python-format
@@ -2328,6 +2749,15 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Sie wurden einem Projekt hinzugefügt</h1>\n"
+"<p>Hallo %(full_name)s,<br />Sie wurden einem Projekt hinzugefügt "
+"%(project)s</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"Go to%(project)s\"> Zum Projekt "
+"gehen</a>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+"\n"
+" "
 
 #: taiga/projects/templates/emails/membership_notification-body-text.jinja:1
 #, python-format
@@ -2338,6 +2768,11 @@ msgid ""
 "\n"
 "See project at %(url)s\n"
 msgstr ""
+"\n"
+"Sie wurden einem Projekt hinzugefügt\n"
+"Hallo %(full_name)s, Sie wurden folgendem Projekt hinzugefügt %(project)s\n"
+"\n"
+"Projekt ansehen auf %(url)s\n"
 
 #: taiga/projects/templates/emails/membership_notification-subject.jinja:1
 #, python-format
@@ -2554,7 +2989,7 @@ msgstr "Kritisch"
 #. Translators: User role
 #: taiga/projects/translations.py:170
 msgid "UX"
-msgstr ""
+msgstr "UX"
 
 #. Translators: User role
 #: taiga/projects/translations.py:172
@@ -2564,12 +2999,12 @@ msgstr "Design"
 #. Translators: User role
 #: taiga/projects/translations.py:174
 msgid "Front"
-msgstr ""
+msgstr "Front"
 
 #. Translators: User role
 #: taiga/projects/translations.py:176
 msgid "Back"
-msgstr ""
+msgstr "Back"
 
 #. Translators: User role
 #: taiga/projects/translations.py:178
@@ -2621,7 +3056,7 @@ msgstr "erzeugt von Ticket"
 
 #: taiga/projects/userstories/validators.py:28
 msgid "There's no user story with that id"
-msgstr "Es gibt keine User Story mit dieser id"
+msgstr "Es gibt keine User-Story mit dieser id"
 
 #: taiga/projects/validators.py:28
 msgid "There's no project with that id"
@@ -2650,11 +3085,11 @@ msgstr "Stimme"
 
 #: taiga/projects/wiki/api.py:60
 msgid "'content' parameter is mandatory"
-msgstr ""
+msgstr "'content' Parameter ist erforderlich"
 
 #: taiga/projects/wiki/api.py:63
 msgid "'project_id' parameter is mandatory"
-msgstr ""
+msgstr "'project_id' Parameter ist erforderlich"
 
 #: taiga/projects/wiki/models.py:36
 msgid "last modifier"
@@ -2706,7 +3141,7 @@ msgstr "Ungültiges aktuelles Passwort"
 
 #: taiga/users/api.py:203
 msgid "Incomplete arguments"
-msgstr ""
+msgstr "Unvollständige Argumente"
 
 #: taiga/users/api.py:208
 msgid "Invalid image format"
@@ -2787,7 +3222,7 @@ msgstr "Vorgegebene Sprache"
 
 #: taiga/users/models.py:122
 msgid "default theme"
-msgstr ""
+msgstr "Standard-Theme"
 
 #: taiga/users/models.py:124
 msgid "default timezone"
@@ -2833,6 +3268,16 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Änderung Ihrer E-Mail Adresse</h1>\n"
+"<p>Hallo %(full_name)s,<br />Bitte bestätigen Sie Ihre E-Mail Adresse</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"Confirm email\">E-Mail Adresse "
+"bestätigen</a>\n"
+"<p>Sie können diese Nachricht ignorieren, wenn Sie keine Anfrage gestellt "
+"haben</p>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+"\n"
+" "
 
 #: taiga/users/templates/emails/change_email-body-text.jinja:1
 #, python-format
@@ -2880,6 +3325,16 @@ msgid ""
 "    <p><small>The Taiga Team</small></p>\n"
 "    "
 msgstr ""
+"\n"
+"<h1>Passwort wiederherstellen</h1>\n"
+"<p>Hallo %(full_name)s, <br />Sie möchten Ihr Passwort wiederherstellen</p>\n"
+"<a class=\"button\" href=\"%(url)s\" title=\"Recover your password"
+"\">Passwort wiederherstellen</a>\n"
+"<p>Sie können diese Nachricht ignorieren, wenn Sie keine Anfrage gestellt "
+"haben.</p>\n"
+"<p><small>Das Taiga Team</small></p>\n"
+"\n"
+" "
 
 #: taiga/users/templates/emails/password_recovery-body-text.jinja:1
 #, python-format
@@ -2894,6 +3349,17 @@ msgid ""
 "---\n"
 "The Taiga Team\n"
 msgstr ""
+"\n"
+"Hallo %(full_name)s, Sie möchten Ihr Passwort wiederherstellen\n"
+"\n"
+"%(url)s\n"
+"\n"
+"Sie können diese Nachricht ignorieren, wenn Sie keine Anfrage gestellt "
+"haben.\n"
+"\n"
+"---\n"
+"Das Taiga Team\n"
+"\n"
 
 #: taiga/users/templates/emails/password_recovery-subject.jinja:1
 msgid "[Taiga] Password recovery"

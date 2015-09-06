@@ -1,6 +1,4 @@
-# Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2015 Taiga Agile LLC <support@taiga.io>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -14,13 +12,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from taiga.base.api.permissions import (TaigaResourcePermission, IsAuthenticated)
+from django.apps import AppConfig
+from django.apps import apps
+from django.conf import settings
+from django.conf.urls import include, url
+
+from .routers import router
 
 
-class NotifyPolicyPermission(TaigaResourcePermission):
-    retrieve_perms = IsAuthenticated()
-    create_perms = IsAuthenticated()
-    update_perms = IsAuthenticated()
-    partial_update_perms = IsAuthenticated()
-    destroy_perms = IsAuthenticated()
-    list_perms = IsAuthenticated()
+class StatsAppConfig(AppConfig):
+    name = "taiga.stats"
+    verbose_name = "Stats"
+
+    def ready(self):
+        if settings.STATS_ENABLED:
+            from taiga.urls import urlpatterns
+            urlpatterns.append(url(r'^api/v1/', include(router.urls)))

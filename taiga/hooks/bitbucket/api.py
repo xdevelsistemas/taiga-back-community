@@ -24,22 +24,15 @@ from taiga.hooks.api import BaseWebhookApiViewSet
 from . import event_hooks
 
 from urllib.parse import parse_qs
-from ipware.ip import get_real_ip
+from ipware.ip import get_ip
 
 
 class BitBucketViewSet(BaseWebhookApiViewSet):
     event_hook_classes = {
-        "push": event_hooks.PushEventHook,
+        "repo:push": event_hooks.PushEventHook,
+        "issue:created": event_hooks.IssuesEventHook,
+        "issue:comment_created": event_hooks.IssueCommentEventHook,
     }
-
-    def _get_payload(self, request):
-        try:
-            body = parse_qs(request.body.decode("utf-8"), strict_parsing=True)
-            payload = body["payload"]
-        except (ValueError, KeyError):
-            raise exc.BadRequest(_("The payload is not a valid application/x-www-form-urlencoded"))
-
-        return payload
 
     def _validate_signature(self, project, request):
         secret_key = request.GET.get("key", None)
@@ -60,7 +53,7 @@ class BitBucketViewSet(BaseWebhookApiViewSet):
         bitbucket_config = project.modules_config.config.get("bitbucket", {})
         valid_origin_ips = bitbucket_config.get("valid_origin_ips",
                                                 settings.BITBUCKET_VALID_ORIGIN_IPS)
-        origin_ip = get_real_ip(request)
+        origin_ip = get_ip(request)
         if valid_origin_ips and (not origin_ip or origin_ip not in valid_origin_ips):
             return False
 
@@ -75,4 +68,4 @@ class BitBucketViewSet(BaseWebhookApiViewSet):
             return None
 
     def _get_event_name(self, request):
-        return "push"
+        return request.META.get('HTTP_X_EVENT_KEY', None)

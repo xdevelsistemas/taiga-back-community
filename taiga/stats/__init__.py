@@ -1,6 +1,4 @@
-# Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2015 Taiga Agile LLC <support@taiga.io>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -14,13 +12,4 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from taiga.base.api.permissions import (TaigaResourcePermission, IsAuthenticated)
-
-
-class NotifyPolicyPermission(TaigaResourcePermission):
-    retrieve_perms = IsAuthenticated()
-    create_perms = IsAuthenticated()
-    update_perms = IsAuthenticated()
-    partial_update_perms = IsAuthenticated()
-    destroy_perms = IsAuthenticated()
-    list_perms = IsAuthenticated()
+default_app_config = "taiga.stats.apps.StatsAppConfig"

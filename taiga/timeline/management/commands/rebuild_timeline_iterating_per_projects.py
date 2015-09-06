@@ -14,19 +14,22 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from taiga.base.api.permissions import (TaigaResourcePermission, HasProjectPerm,
-                                        IsProjectOwner, AllowAny, IsSuperUser)
+from django.core.management.base import BaseCommand
+from django.test.utils import override_settings
+from django.core.management import call_command
+
+from taiga.projects.models import Project
 
 
-class TaskPermission(TaigaResourcePermission):
-    enought_perms = IsProjectOwner() | IsSuperUser()
-    global_perms = None
-    retrieve_perms = HasProjectPerm('view_tasks')
-    create_perms = HasProjectPerm('add_task')
-    update_perms = HasProjectPerm('modify_task')
-    partial_update_perms = HasProjectPerm('modify_task')
-    destroy_perms = HasProjectPerm('delete_task')
-    list_perms = AllowAny()
-    csv_perms = AllowAny()
-    bulk_create_perms = HasProjectPerm('add_task')
-    bulk_update_order_perms = HasProjectPerm('modify_task')
+class Command(BaseCommand):
+    help = 'Regenerate projects timeline iterating per project'
+
+    @override_settings(DEBUG=False)
+    def handle(self, *args, **options):
+        total = Project.objects.count()
+
+        for count,project in enumerate(Project.objects.order_by("id")):
+            print("""***********************************
+ %s/%s %s
+***********************************"""%(count+1, total, project.name))
+            call_command("rebuild_timeline", project=project.id)

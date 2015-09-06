@@ -78,6 +78,26 @@ def test_invalid_ip(client):
     assert response.status_code == 400
 
 
+def test_valid_local_network_ip(client):
+    project = f.ProjectFactory()
+    f.ProjectModulesConfigFactory(project=project, config={
+        "gitlab": {
+            "secret": "tpnIwJDz4e",
+            "valid_origin_ips": ["192.168.1.1"],
+        }
+    })
+
+    url = reverse("gitlab-hook-list")
+    url = "{}?project={}&key={}".format(url, project.id, "tpnIwJDz4e")
+    data = {"test:": "data"}
+    response = client.post(url,
+                           json.dumps(data),
+                           content_type="application/json",
+                           REMOTE_ADDR="192.168.1.1")
+
+    assert response.status_code == 204
+
+
 def test_not_ip_filter(client):
     project = f.ProjectFactory()
     f.ProjectModulesConfigFactory(project=project, config={
@@ -177,6 +197,30 @@ def test_push_event_user_story_processing(client):
     user_story = UserStory.objects.get(id=user_story.id)
     assert user_story.status.id == new_status.id
     assert len(mail.outbox) == 1
+
+
+def test_push_event_multiple_actions(client):
+    creation_status = f.IssueStatusFactory()
+    role = f.RoleFactory(project=creation_status.project, permissions=["view_issues"])
+    f.MembershipFactory(project=creation_status.project, role=role, user=creation_status.project.owner)
+    new_status = f.IssueStatusFactory(project=creation_status.project)
+    issue1 = f.IssueFactory.create(status=creation_status, project=creation_status.project, owner=creation_status.project.owner)
+    issue2 = f.IssueFactory.create(status=creation_status, project=creation_status.project, owner=creation_status.project.owner)
+    payload = {"commits": [
+        {"message": """test message
+            test   TG-%s    #%s   ok
+            test   TG-%s    #%s   ok
+            bye!
+        """ % (issue1.ref, new_status.slug, issue2.ref, new_status.slug)},
+    ]}
+    mail.outbox = []
+    ev_hook1 = event_hooks.PushEventHook(issue1.project, payload)
+    ev_hook1.process_event()
+    issue1 = Issue.objects.get(id=issue1.id)
+    issue2 = Issue.objects.get(id=issue2.id)
+    assert issue1.status.id == new_status.id
+    assert issue2.status.id == new_status.id
+    assert len(mail.outbox) == 2
 
 
 def test_push_event_processing_case_insensitive(client):

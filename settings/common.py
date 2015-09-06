@@ -283,6 +283,7 @@ INSTALLED_APPS = [
     "taiga.mdrender",
     "taiga.export_import",
     "taiga.feedback",
+    "taiga.stats",
     "taiga.hooks.github",
     "taiga.hooks.gitlab",
     "taiga.hooks.bitbucket",
@@ -341,6 +342,11 @@ LOGGING = {
             "level":"INFO",
         },
         "django.request": {
+            "handlers": ["mail_admins", "console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "taiga.export_import": {
             "handlers": ["mail_admins", "console"],
             "level": "ERROR",
             "propagate": False,
@@ -409,11 +415,13 @@ SOUTH_MIGRATION_MODULES = {
 
 DEFAULT_AVATAR_SIZE = 80                # 80x80 pixels
 DEFAULT_BIG_AVATAR_SIZE = 300           # 300x300 pixels
+DEFAULT_TIMELINE_IMAGE_SIZE = 640       # 640x??? pixels
 
 THUMBNAIL_ALIASES = {
     '': {
         'avatar': {'size': (DEFAULT_AVATAR_SIZE, DEFAULT_AVATAR_SIZE), 'crop': True},
         'big-avatar': {'size': (DEFAULT_BIG_AVATAR_SIZE, DEFAULT_BIG_AVATAR_SIZE), 'crop': True},
+        'timeline-image': {'size': (DEFAULT_TIMELINE_IMAGE_SIZE, 0), 'crop': True},
     },
 }
 
@@ -431,6 +439,10 @@ TAGS_PREDEFINED_COLORS = ["#fce94f", "#edd400", "#c4a000", "#8ae234",
 # Feedback module settings
 FEEDBACK_ENABLED = True
 FEEDBACK_EMAIL = "support@taiga.io"
+
+# Stats module settings
+STATS_ENABLED = False
+STATS_CACHE_TIMEOUT = 60*60  # In second
 
 # 0 notifications will work in a synchronous way
 # >0 an external process will check the pending notifications and will send them
