@@ -3,6 +3,9 @@ import pytest
 from .. import factories as f
 from tests.utils import disconnect_signals, reconnect_signals
 
+from taiga.projects.services.stats import get_stats_for_project
+
+
 pytestmark = pytest.mark.django_db
 
 
@@ -30,6 +33,8 @@ def data():
     m.points2 = f.PointsFactory(project=m.project, value=2)
     m.points3 = f.PointsFactory(project=m.project, value=4)
     m.points4 = f.PointsFactory(project=m.project, value=8)
+    m.points5 = f.PointsFactory(project=m.project, value=16)
+    m.points6 = f.PointsFactory(project=m.project, value=32)
 
     m.open_status = f.UserStoryStatusFactory(is_closed=False)
     m.closed_status = f.UserStoryStatusFactory(is_closed=True)
@@ -37,24 +42,43 @@ def data():
     m.role_points1 = f.RolePointsFactory(role=m.role1,
                                          points=m.points1,
                                          user_story__project=m.project,
-                                         user_story__status=m.open_status)
+                                         user_story__status=m.open_status,
+                                         user_story__milestone=None)
     m.role_points2 = f.RolePointsFactory(role=m.role1,
                                          points=m.points2,
                                          user_story__project=m.project,
-                                         user_story__status=m.open_status)
+                                         user_story__status=m.open_status,
+                                         user_story__milestone=None)
     m.role_points3 = f.RolePointsFactory(role=m.role1,
                                          points=m.points3,
                                          user_story__project=m.project,
-                                         user_story__status=m.open_status)
+                                         user_story__status=m.open_status,
+                                         user_story__milestone=None)
     m.role_points4 = f.RolePointsFactory(role=m.project.roles.all()[0],
                                          points=m.points4,
                                          user_story__project=m.project,
-                                         user_story__status=m.open_status)
+                                         user_story__status=m.open_status,
+                                         user_story__milestone=None)
+    # 5 and 6 are in closed milestones
+    m.role_points5 = f.RolePointsFactory(role=m.project.roles.all()[0],
+                                         points=m.points5,
+                                         user_story__project=m.project,
+                                         user_story__status=m.open_status,
+                                         user_story__milestone__closed=True,
+                                         user_story__milestone__project=m.project)
+    m.role_points6 = f.RolePointsFactory(role=m.project.roles.all()[0],
+                                         points=m.points6,
+                                         user_story__project=m.project,
+                                         user_story__status=m.open_status,
+                                         user_story__milestone__closed=True,
+                                         user_story__milestone__project=m.project)
 
     m.user_story1 = m.role_points1.user_story
     m.user_story2 = m.role_points2.user_story
     m.user_story3 = m.role_points3.user_story
     m.user_story4 = m.role_points4.user_story
+    m.user_story5 = m.role_points5.user_story
+    m.user_story6 = m.role_points6.user_story
 
     m.milestone = f.MilestoneFactory(project=m.project)
 
@@ -62,45 +86,72 @@ def data():
 
 
 def test_project_defined_points(client, data):
-    assert data.project.defined_points == {data.role1.pk: 15}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["defined_points_per_role"] == {data.role1.pk: 63}
     data.role_points1.role = data.role2
     data.role_points1.save()
-    assert data.project.defined_points == {data.role1.pk: 14, data.role2.pk: 1}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["defined_points_per_role"] == {data.role1.pk: 62, data.role2.pk: 1}
 
 
 def test_project_closed_points(client, data):
-    assert data.project.closed_points == {}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["closed_points_per_role"] == {}
     data.role_points1.role = data.role2
     data.role_points1.save()
-    assert data.project.closed_points == {}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["closed_points_per_role"] == {}
     data.user_story1.is_closed = True
     data.user_story1.save()
-    assert data.project.closed_points == {data.role2.pk: 1}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["closed_points_per_role"] == {data.role2.pk: 1}
     data.user_story2.is_closed = True
     data.user_story2.save()
-    assert data.project.closed_points == {data.role1.pk: 2, data.role2.pk: 1}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["closed_points_per_role"] == {data.role1.pk: 2, data.role2.pk: 1}
     data.user_story3.is_closed = True
     data.user_story3.save()
-    assert data.project.closed_points == {data.role1.pk: 6, data.role2.pk: 1}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["closed_points_per_role"] == {data.role1.pk: 6, data.role2.pk: 1}
     data.user_story4.is_closed = True
     data.user_story4.save()
-    assert data.project.closed_points == {data.role1.pk: 14, data.role2.pk: 1}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["closed_points_per_role"] == {data.role1.pk: 14, data.role2.pk: 1}
+
+    data.user_story5.is_closed = True
+    data.user_story5.save()
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["closed_points_per_role"] == {data.role1.pk: 30, data.role2.pk: 1}
+    data.user_story6.is_closed = True
+    data.user_story6.save()
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["closed_points_per_role"] == {data.role1.pk: 62, data.role2.pk: 1}
+
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["closed_points"] == 63
+    assert project_stats["speed"] == 24
 
 
 def test_project_assigned_points(client, data):
-    assert data.project.assigned_points == {}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["assigned_points_per_role"] == {data.role1.pk: 48}
     data.role_points1.role = data.role2
     data.role_points1.save()
-    assert data.project.assigned_points == {}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["assigned_points_per_role"] == {data.role1.pk: 48}
     data.user_story1.milestone = data.milestone
     data.user_story1.save()
-    assert data.project.assigned_points == {data.role2.pk: 1}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["assigned_points_per_role"] == {data.role1.pk: 48, data.role2.pk: 1}
     data.user_story2.milestone = data.milestone
     data.user_story2.save()
-    assert data.project.assigned_points == {data.role1.pk: 2, data.role2.pk: 1}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["assigned_points_per_role"] == {data.role1.pk: 50, data.role2.pk: 1}
     data.user_story3.milestone = data.milestone
     data.user_story3.save()
-    assert data.project.assigned_points == {data.role1.pk: 6, data.role2.pk: 1}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["assigned_points_per_role"] == {data.role1.pk: 54, data.role2.pk: 1}
     data.user_story4.milestone = data.milestone
     data.user_story4.save()
-    assert data.project.assigned_points == {data.role1.pk: 14, data.role2.pk: 1}
+    project_stats = get_stats_for_project(data.project)
+    assert project_stats["assigned_points_per_role"] == {data.role1.pk: 62, data.role2.pk: 1}

@@ -1,6 +1,6 @@
-# Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -38,8 +38,19 @@ class PushEventHook(BaseEventHook):
             return
 
         changes = self.payload.get("push", {}).get('changes', [])
-        for change in changes:
-            message = change.get("new", {}).get("target", {}).get("message", None)
+        for change in filter(None, changes):
+            new = change.get("new", None)
+            if not new:
+                continue
+
+            target = new.get("target", None)
+            if not target:
+                continue
+
+            message = target.get("message", None)
+            if not message:
+                continue
+
             self._process_message(message, None)
 
     def _process_message(self, message, bitbucket_user):
@@ -130,8 +141,8 @@ class IssuesEventHook(BaseEventHook):
         if number and subject and bitbucket_user_name and bitbucket_user_url:
             comment = _("Issue created by [@{bitbucket_user_name}]({bitbucket_user_url} "
                         "\"See @{bitbucket_user_name}'s BitBucket profile\") "
-                        "from BitBucket.\nOrigin BitBucket issue: [gh#{number} - {subject}]({bitbucket_url} "
-                        "\"Go to 'gh#{number} - {subject}'\"):\n\n"
+                        "from BitBucket.\nOrigin BitBucket issue: [bb#{number} - {subject}]({bitbucket_url} "
+                        "\"Go to 'bb#{number} - {subject}'\"):\n\n"
                         "{description}").format(bitbucket_user_name=bitbucket_user_name,
                                                 bitbucket_user_url=bitbucket_user_url,
                                                 number=number,
@@ -173,8 +184,8 @@ class IssueCommentEventHook(BaseEventHook):
             if number and subject and bitbucket_user_name and bitbucket_user_url:
                 comment = _("Comment by [@{bitbucket_user_name}]({bitbucket_user_url} "
                             "\"See @{bitbucket_user_name}'s BitBucket profile\") "
-                            "from BitBucket.\nOrigin BitBucket issue: [gh#{number} - {subject}]({bitbucket_url} "
-                            "\"Go to 'gh#{number} - {subject}'\")\n\n"
+                            "from BitBucket.\nOrigin BitBucket issue: [bb#{number} - {subject}]({bitbucket_url} "
+                            "\"Go to 'bb#{number} - {subject}'\")\n\n"
                             "{message}").format(bitbucket_user_name=bitbucket_user_name,
                                                 bitbucket_user_url=bitbucket_user_url,
                                                 number=number,

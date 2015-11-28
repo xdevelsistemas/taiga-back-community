@@ -1,6 +1,6 @@
-# Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -19,80 +19,10 @@ from django.db.models import Q, Count
 from django.apps import apps
 import datetime
 import copy
+import collections
 
 from taiga.projects.history.models import HistoryEntry
-
-
-def _get_milestones_stats_for_backlog(project):
-    """
-    Get collection of stats for each millestone of project.
-    Data returned by this function are used on backlog.
-    """
-    current_evolution = 0
-    current_team_increment = 0
-    current_client_increment = 0
-
-    optimal_points_per_sprint = 0
-    if project.total_story_points and project.total_milestones:
-        optimal_points_per_sprint = project.total_story_points / project.total_milestones
-
-    future_team_increment = sum(project.future_team_increment.values())
-    future_client_increment = sum(project.future_client_increment.values())
-
-    milestones = project.milestones.order_by('estimated_start').\
-            prefetch_related("user_stories",
-                             "user_stories__role_points",
-                             "user_stories__role_points__points")
-
-    milestones = list(milestones)
-    milestones_count = len(milestones)
-    optimal_points = 0
-    team_increment = 0
-    client_increment = 0
-
-    for current_milestone in range(0, max(milestones_count, project.total_milestones)):
-        optimal_points = (project.total_story_points -
-                            (optimal_points_per_sprint * current_milestone))
-
-        evolution = (project.total_story_points - current_evolution
-                        if current_evolution is not None else None)
-
-        if current_milestone < milestones_count:
-            ml = milestones[current_milestone]
-
-            milestone_name = ml.name
-            team_increment = current_team_increment
-            client_increment = current_client_increment
-
-            current_evolution += sum(ml.closed_points.values())
-            current_team_increment += sum(ml.team_increment_points.values())
-            current_client_increment += sum(ml.client_increment_points.values())
-
-        else:
-            milestone_name = _("Future sprint")
-            team_increment = current_team_increment + future_team_increment,
-            client_increment = current_client_increment + future_client_increment,
-            current_evolution = None
-
-        yield {
-            'name': milestone_name,
-            'optimal': optimal_points,
-            'evolution': evolution,
-            'team-increment': team_increment,
-            'client-increment': client_increment,
-        }
-
-    optimal_points -= optimal_points_per_sprint
-    evolution = (project.total_story_points - current_evolution
-                    if current_evolution is not None and project.total_story_points else None)
-    yield {
-        'name': _('Project End'),
-        'optimal': optimal_points,
-        'evolution': evolution,
-        'team-increment': team_increment,
-        'client-increment': client_increment,
-    }
-
+from taiga.projects.userstories.models import RolePoints
 
 def _count_status_object(status_obj, counting_storage):
     if status_obj.id in counting_storage:
@@ -103,6 +33,7 @@ def _count_status_object(status_obj, counting_storage):
         counting_storage[status_obj.id]['name'] = status_obj.name
         counting_storage[status_obj.id]['id'] = status_obj.id
         counting_storage[status_obj.id]['color'] = status_obj.color
+
 
 def _count_owned_object(user_obj, counting_storage):
     if user_obj:
@@ -125,6 +56,7 @@ def _count_owned_object(user_obj, counting_storage):
             counting_storage[0]['name'] = _('Unassigned')
             counting_storage[0]['id'] = 0
             counting_storage[0]['color'] = 'black'
+
 
 def get_stats_for_project_issues(project):
     project_issues_stats = {
@@ -203,30 +135,217 @@ def get_stats_for_project_issues(project):
     return project_issues_stats
 
 
-def get_stats_for_project(project):
-    project = apps.get_model("projects", "Project").objects.\
-        prefetch_related("milestones",
-                                     "user_stories").\
-        get(id=project.id)
+def _get_milestones_stats_for_backlog(project, milestones):
+    """
+    Calculates the stats associated to the milestones parameter.
 
-    points = project.calculated_points
-    closed_points = sum(points["closed"].values())
-    closed_milestones = project.milestones.filter(closed=True).count()
+    - project is a Project model instance
+        We assume this object have also the following numeric attributes:
+        - _defined_points
+        - _future_team_increment
+        - _future_client_increment
+
+    - milestones is a sorted dict of Milestone model instances sorted by estimated_start.
+        We assume this objects have also the following numeric attributes:
+        - _closed_points
+        - _team_increment_points
+        - _client_increment_points
+
+    The returned result is a list of dicts where each entry contains the following keys:
+        - name
+        - optimal
+        - evolution
+        - team
+        - client
+    """
+    current_evolution = 0
+    current_team_increment = 0
+    current_client_increment = 0
+    optimal_points_per_sprint = 0
+    optimal_points = 0
+    team_increment = 0
+    client_increment = 0
+
+    total_story_points = project.total_story_points\
+        if project.total_story_points not in [None, 0] else project._defined_points
+
+    total_milestones = project.total_milestones\
+        if project.total_milestones not in [None, 0] else len(milestones)
+
+    if total_story_points and total_milestones:
+        optimal_points_per_sprint = total_story_points / total_milestones
+
+    milestones_count = len(milestones)
+    milestones_stats = []
+    for current_milestone_pos in range(0, max(milestones_count, total_milestones)):
+        optimal_points = (total_story_points -
+                            (optimal_points_per_sprint * current_milestone_pos))
+
+        evolution = (total_story_points - current_evolution
+                        if current_evolution is not None else None)
+
+        if current_milestone_pos < milestones_count:
+            current_milestone = list(milestones.values())[current_milestone_pos]
+            milestone_name = current_milestone.name
+            team_increment = current_team_increment
+            client_increment = current_client_increment
+            current_evolution += current_milestone._closed_points
+            current_team_increment += current_milestone._team_increment_points
+            current_client_increment += current_milestone._client_increment_points
+
+        else:
+            milestone_name = _("Future sprint")
+            team_increment = current_team_increment + project._future_team_increment,
+            client_increment = current_client_increment + project._future_client_increment,
+            current_evolution = None
+
+        milestones_stats.append({
+            'name': milestone_name,
+            'optimal': optimal_points,
+            'evolution': evolution,
+            'team-increment': team_increment,
+            'client-increment': client_increment,
+        })
+
+    optimal_points -= optimal_points_per_sprint
+    evolution = (total_story_points - current_evolution
+                    if current_evolution is not None and total_story_points else None)
+
+    milestones_stats.append({
+        'name': _('Project End'),
+        'optimal': optimal_points,
+        'evolution': evolution,
+        'team-increment': team_increment,
+        'client-increment': client_increment,
+    })
+
+    return milestones_stats
+
+
+def get_stats_for_project(project):
+    # Let's fetch all the estimations related to a project with all the necesary
+    # related data
+    role_points = RolePoints.objects.filter(
+        user_story__project = project,
+    ).prefetch_related(
+        "user_story",
+        "user_story__assigned_to",
+        "user_story__milestone",
+        "user_story__status",
+        "role",
+        "points")
+
+    # Data inicialization
+    project._closed_points = 0
+    project._closed_points_per_role = {}
+    project._closed_points_from_closed_milestones = 0
+    project._defined_points = 0
+    project._defined_points_per_role = {}
+    project._assigned_points = 0
+    project._assigned_points_per_role = {}
+    project._future_team_increment = 0
+    project._future_client_increment = 0
+
+    # The key will be the milestone id and it will be ordered by estimated_start
+    milestones = collections.OrderedDict()
+    for milestone in project.milestones.order_by("estimated_start"):
+        milestone._closed_points = 0
+        milestone._team_increment_points = 0
+        milestone._client_increment_points = 0
+        milestones[milestone.id] = milestone
+
+    def _find_milestone_for_userstory(user_story):
+        for m in milestones.values():
+            if m.estimated_finish > user_story.created_date.date() and\
+               m.estimated_start <= user_story.created_date.date():
+
+              return m
+
+        return None
+
+    def _update_team_increment(milestone, value):
+        if milestone:
+            milestones[milestone.id]._team_increment_points += value
+        else:
+            project._future_team_increment += value
+
+    def _update_client_increment(milestone, value):
+        if milestone:
+            milestones[milestone.id]._client_increment_points += value
+        else:
+            project._future_client_increment += value
+
+    # Iterate over all the project estimations and update our stats
+    for role_point in role_points:
+        role_id = role_point.role.id
+        points_value = role_point.points.value
+        milestone = role_point.user_story.milestone
+        is_team_requirement = role_point.user_story.team_requirement
+        is_client_requirement = role_point.user_story.client_requirement
+        us_milestone = _find_milestone_for_userstory(role_point.user_story)
+
+        # None estimations doesn't affect to project stats
+        if points_value is None:
+            continue
+
+        # Total defined points
+        project._defined_points += points_value
+
+        # Defined points per role
+        project._defined_points_for_role = project._defined_points_per_role.get(role_id, 0)
+        project._defined_points_for_role += points_value
+        project._defined_points_per_role[role_id] = project._defined_points_for_role
+
+        # Closed points
+        if role_point.user_story.is_closed:
+            project._closed_points += points_value
+            closed_points_for_role = project._closed_points_per_role.get(role_id, 0)
+            closed_points_for_role += points_value
+            project._closed_points_per_role[role_id] = closed_points_for_role
+
+            if milestone is not None:
+                milestones[milestone.id]._closed_points += points_value
+
+        if milestone is not None and milestone.closed:
+            project._closed_points_from_closed_milestones += points_value
+
+        # Assigned to milestone points
+        if role_point.user_story.milestone is not None:
+            project._assigned_points += points_value
+            assigned_points_for_role = project._assigned_points_per_role.get(role_id, 0)
+            assigned_points_for_role += points_value
+            project._assigned_points_per_role[role_id] = assigned_points_for_role
+
+        # Extra requirements
+        if is_team_requirement and is_client_requirement:
+            _update_team_increment(us_milestone, points_value/2)
+            _update_client_increment(us_milestone, points_value/2)
+
+        if is_team_requirement and not is_client_requirement:
+            _update_team_increment(us_milestone, points_value)
+
+        if not is_team_requirement and is_client_requirement:
+            _update_client_increment(us_milestone, points_value)
+
+    # Speed calculations
     speed = 0
+    closed_milestones = len([m for m in milestones.values() if m.closed])
     if closed_milestones != 0:
-        speed = closed_points / closed_milestones
+        speed = project._closed_points_from_closed_milestones / closed_milestones
+
+    milestones_stats = _get_milestones_stats_for_backlog(project, milestones)
 
     project_stats = {
         'name': project.name,
         'total_milestones': project.total_milestones,
         'total_points': project.total_story_points,
-        'closed_points': closed_points,
-        'closed_points_per_role': points["closed"],
-        'defined_points': sum(points["defined"].values()),
-        'defined_points_per_role': points["defined"],
-        'assigned_points': sum(points["assigned"].values()),
-        'assigned_points_per_role': points["assigned"],
-        'milestones': _get_milestones_stats_for_backlog(project),
+        'closed_points': project._closed_points,
+        'closed_points_per_role': project._closed_points_per_role,
+        'defined_points': project._defined_points,
+        'defined_points_per_role': project._defined_points_per_role,
+        'assigned_points': project._assigned_points,
+        'assigned_points_per_role': project._assigned_points_per_role,
+        'milestones': milestones_stats,
         'speed': speed,
     }
     return project_stats
@@ -282,6 +401,7 @@ def _get_closed_tasks_per_member_stats(project):
         .order_by()
     closed_tasks = {p["assigned_to"]: p["count"] for p in closed_tasks}
     return closed_tasks
+
 
 def get_member_stats_for_project(project):
     base_counters = {id: 0 for id in project.members.values_list("id", flat=True)}

@@ -1,6 +1,6 @@
-# Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
 import codecs
 import uuid
 
@@ -26,6 +25,7 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
+from taiga.base.utils import json
 from taiga.base.decorators import detail_route, list_route
 from taiga.base import exceptions as exc
 from taiga.base import response
@@ -33,6 +33,7 @@ from taiga.base.api.mixins import CreateModelMixin
 from taiga.base.api.viewsets import GenericViewSet
 from taiga.projects.models import Project, Membership
 from taiga.projects.issues.models import Issue
+from taiga.projects.tasks.models import Task
 from taiga.projects.serializers import ProjectSerializer
 
 from . import mixins
@@ -67,10 +68,10 @@ class ProjectExporterViewSet(mixins.ImportThrottlingPolicyMixin, GenericViewSet)
             return response.Accepted({"export_id": task.id})
 
         path = "exports/{}/{}-{}.json".format(project.pk, project.slug, uuid.uuid4().hex)
-        content = ContentFile(ExportRenderer().render(service.project_to_dict(project),
-                                                      renderer_context={"indent": 4}).decode('utf-8'))
+        storage_path = default_storage.path(path)
+        with default_storage.open(storage_path, mode="w") as outfile:
+            service.render_project(project, outfile)
 
-        default_storage.save(path, content)
         response_data = {
             "url": default_storage.url(path)
         }
@@ -237,6 +238,9 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
     def task(self, request, *args, **kwargs):
         project = self.get_object_or_none()
         self.check_permissions(request, 'import_item', project)
+
+        signals.pre_save.disconnect(sender=Task,
+                                    dispatch_uid="set_finished_date_when_edit_task")
 
         task = service.store_task(project, request.DATA.copy())
 

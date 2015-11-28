@@ -1,6 +1,6 @@
-# Copyright (C) 2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2015 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -117,7 +117,7 @@ DEFAULTS = {
     "DATE_INPUT_FORMATS": (
         ISO_8601,
     ),
-    "DATE_FORMAT": None,
+    "DATE_FORMAT": ISO_8601,
 
     "DATETIME_INPUT_FORMATS": (
         ISO_8601,

@@ -1,6 +1,6 @@
-# Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -20,7 +20,7 @@ import uuid
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import signals
+from django.db.models import signals, Q
 from django.apps import apps
 from django.conf import settings
 from django.dispatch import receiver
@@ -37,6 +37,13 @@ from taiga.base.utils.slug import slugify_uniquely
 from taiga.base.utils.dicts import dict_sum
 from taiga.base.utils.sequence import arithmetic_progression
 from taiga.base.utils.slug import slugify_uniquely_for_queryset
+
+from taiga.projects.notifications.choices import NotifyLevel
+from taiga.projects.notifications.services import (
+    get_notify_policy,
+    set_notify_policy_level,
+    set_notify_policy_level_to_ignore,
+    create_notify_policy_if_not_exists)
 
 from . import choices
 
@@ -70,6 +77,10 @@ class Membership(models.Model):
 
     user_order = models.IntegerField(default=10000, null=False, blank=False,
                             verbose_name=_("user order"))
+
+    def get_related_people(self):
+        related_people = get_user_model().objects.filter(id=self.user.id)
+        return related_people
 
     def clean(self):
         # TODO: Review and do it more robust
@@ -135,9 +146,9 @@ class Project(ProjectDefaults, TaggedMixin, models.Model):
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="projects",
                                      through="Membership", verbose_name=_("members"),
                                      through_fields=("project", "user"))
-    total_milestones = models.IntegerField(default=0, null=False, blank=False,
+    total_milestones = models.IntegerField(null=True, blank=True,
                                            verbose_name=_("total of milestones"))
-    total_story_points = models.FloatField(default=0, verbose_name=_("total story points"))
+    total_story_points = models.FloatField(null=True, blank=True, verbose_name=_("total story points"))
 
     is_backlog_activated = models.BooleanField(default=True, null=False, blank=True,
                                                verbose_name=_("active backlog panel"))
@@ -150,8 +161,8 @@ class Project(ProjectDefaults, TaggedMixin, models.Model):
     videoconferences = models.CharField(max_length=250, null=True, blank=True,
                                         choices=choices.VIDEOCONFERENCES_CHOICES,
                                         verbose_name=_("videoconference system"))
-    videoconferences_salt = models.CharField(max_length=250, null=True, blank=True,
-                                             verbose_name=_("videoconference room salt"))
+    videoconferences_extra_data = models.CharField(max_length=250, null=True, blank=True,
+                                             verbose_name=_("videoconference extra data"))
 
     creation_template = models.ForeignKey("projects.ProjectTemplate",
                                           related_name="projects", null=True,
@@ -209,7 +220,7 @@ class Project(ProjectDefaults, TaggedMixin, models.Model):
             self.slug = slug
 
         if not self.videoconferences:
-            self.videoconferences_salt = None
+            self.videoconferences_extra_data = None
 
         super().save(*args, **kwargs)
 
@@ -260,31 +271,6 @@ class Project(ProjectDefaults, TaggedMixin, models.Model):
         rp_query = rp_query.exclude(role__id__in=roles.values_list("id", flat=True))
         rp_query.delete()
 
-    def _get_user_stories_points(self, user_stories):
-        role_points = [us.role_points.all() for us in user_stories]
-        flat_role_points = itertools.chain(*role_points)
-        flat_role_dicts = map(lambda x: {x.role_id: x.points.value if x.points.value else 0},
-                              flat_role_points)
-        return dict_sum(*flat_role_dicts)
-
-    def _get_points_increment(self, client_requirement, team_requirement):
-        last_milestones = self.milestones.order_by('-estimated_finish')
-        last_milestone = last_milestones[0] if last_milestones else None
-        if last_milestone:
-            user_stories = self.user_stories.filter(
-                created_date__gte=last_milestone.estimated_finish,
-                client_requirement=client_requirement,
-                team_requirement=team_requirement
-            )
-        else:
-            user_stories = self.user_stories.filter(
-                client_requirement=client_requirement,
-                team_requirement=team_requirement
-            )
-        user_stories = user_stories.prefetch_related('role_points', 'role_points__points')
-        return self._get_user_stories_points(user_stories)
-
-
     @property
     def project(self):
         return self
@@ -293,44 +279,38 @@ class Project(ProjectDefaults, TaggedMixin, models.Model):
     def project(self):
         return self
 
-    @property
-    def future_team_increment(self):
-        team_increment = self._get_points_increment(False, True)
-        shared_increment = {key: value / 2 for key, value in self.future_shared_increment.items()}
-        return dict_sum(team_increment, shared_increment)
+    def _get_q_watchers(self):
+        return Q(notify_policies__project_id=self.id) & ~Q(notify_policies__notify_level=NotifyLevel.none)
 
-    @property
-    def future_client_increment(self):
-        client_increment = self._get_points_increment(True, False)
-        shared_increment = {key: value / 2 for key, value in self.future_shared_increment.items()}
-        return dict_sum(client_increment, shared_increment)
+    def get_watchers(self):
+        return get_user_model().objects.filter(self._get_q_watchers())
 
-    @property
-    def future_shared_increment(self):
-        return self._get_points_increment(True, True)
+    def get_related_people(self):
+        related_people_q = Q()
 
-    @property
-    def closed_points(self):
-        return self.calculated_points["closed"]
+        ## - Owner
+        if self.owner_id:
+            related_people_q.add(Q(id=self.owner_id), Q.OR)
 
-    @property
-    def defined_points(self):
-        return self.calculated_points["defined"]
+        ## - Watchers
+        related_people_q.add(self._get_q_watchers(), Q.OR)
 
-    @property
-    def assigned_points(self):
-        return self.calculated_points["assigned"]
+        ## - Apply filters
+        related_people = get_user_model().objects.filter(related_people_q)
 
-    @property
-    def calculated_points(self):
-        user_stories = self.user_stories.all().prefetch_related('role_points', 'role_points__points')
-        closed_user_stories = user_stories.filter(is_closed=True)
-        assigned_user_stories = user_stories.filter(milestone__isnull=False)
-        return {
-            "defined": self._get_user_stories_points(user_stories),
-            "closed": self._get_user_stories_points(closed_user_stories),
-            "assigned": self._get_user_stories_points(assigned_user_stories),
-        }
+        ## - Exclude inactive and system users and remove duplicate
+        related_people = related_people.exclude(is_active=False)
+        related_people = related_people.exclude(is_system=True)
+        related_people = related_people.distinct()
+        return related_people
+
+    def add_watcher(self, user, notify_level=NotifyLevel.all):
+        notify_policy = create_notify_policy_if_not_exists(self, user)
+        set_notify_policy_level(notify_policy, notify_level)
+
+    def remove_watcher(self, user):
+        notify_policy = get_notify_policy(self, user)
+        set_notify_policy_level_to_ignore(notify_policy)
 
 
 class ProjectModulesConfig(models.Model):
@@ -577,8 +557,8 @@ class ProjectTemplate(models.Model):
     videoconferences = models.CharField(max_length=250, null=True, blank=True,
                                         choices=choices.VIDEOCONFERENCES_CHOICES,
                                         verbose_name=_("videoconference system"))
-    videoconferences_salt = models.CharField(max_length=250, null=True, blank=True,
-                                             verbose_name=_("videoconference room salt"))
+    videoconferences_extra_data = models.CharField(max_length=250, null=True, blank=True,
+                                             verbose_name=_("videoconference extra data"))
 
     default_options = JsonField(null=True, blank=True, verbose_name=_("default options"))
     us_statuses = JsonField(null=True, blank=True, verbose_name=_("us statuses"))
@@ -613,7 +593,7 @@ class ProjectTemplate(models.Model):
         self.is_wiki_activated = project.is_wiki_activated
         self.is_issues_activated = project.is_issues_activated
         self.videoconferences = project.videoconferences
-        self.videoconferences_salt = project.videoconferences_salt
+        self.videoconferences_extra_data = project.videoconferences_extra_data
 
         self.default_options = {
             "points": getattr(project.default_points, "name", None),
@@ -717,7 +697,7 @@ class ProjectTemplate(models.Model):
         project.is_wiki_activated = self.is_wiki_activated
         project.is_issues_activated = self.is_issues_activated
         project.videoconferences = self.videoconferences
-        project.videoconferences_salt = self.videoconferences_salt
+        project.videoconferences_extra_data = self.videoconferences_extra_data
 
         for us_status in self.us_statuses:
             UserStoryStatus.objects.create(

@@ -1,6 +1,6 @@
-# Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -23,8 +23,9 @@ from taiga.projects.userstories import models as us_models
 from taiga.projects.tasks import models as task_models
 from taiga.projects.issues import models as issue_models
 from taiga.projects.milestones import models as milestone_models
-from taiga.projects.history import models as history_models
 from taiga.projects.wiki import models as wiki_models
+from taiga.projects.history import models as history_models
+from taiga.projects.notifications.mixins import EditableWatchedResourceModelSerializer
 
 from .models import Webhook, WebhookLog
 
@@ -103,12 +104,12 @@ class PointSerializer(serializers.Serializer):
         return obj.value
 
 
-class UserStorySerializer(CustomAttributesValuesWebhookSerializerMixin, serializers.ModelSerializer):
+class UserStorySerializer(CustomAttributesValuesWebhookSerializerMixin, EditableWatchedResourceModelSerializer,
+                          serializers.ModelSerializer):
     tags = TagsField(default=[], required=False)
     external_reference = PgArrayField(required=False)
     owner = UserSerializer()
     assigned_to = UserSerializer()
-    watchers = UserSerializer(many=True)
     points = PointSerializer(many=True)
 
     class Meta:
@@ -119,11 +120,11 @@ class UserStorySerializer(CustomAttributesValuesWebhookSerializerMixin, serializ
         return project.userstorycustomattributes.all()
 
 
-class TaskSerializer(CustomAttributesValuesWebhookSerializerMixin, serializers.ModelSerializer):
+class TaskSerializer(CustomAttributesValuesWebhookSerializerMixin, EditableWatchedResourceModelSerializer,
+                     serializers.ModelSerializer):
     tags = TagsField(default=[], required=False)
     owner = UserSerializer()
     assigned_to = UserSerializer()
-    watchers = UserSerializer(many=True)
 
     class Meta:
         model = task_models.Task
@@ -132,11 +133,11 @@ class TaskSerializer(CustomAttributesValuesWebhookSerializerMixin, serializers.M
         return project.taskcustomattributes.all()
 
 
-class IssueSerializer(CustomAttributesValuesWebhookSerializerMixin, serializers.ModelSerializer):
+class IssueSerializer(CustomAttributesValuesWebhookSerializerMixin, EditableWatchedResourceModelSerializer,
+                      serializers.ModelSerializer):
     tags = TagsField(default=[], required=False)
     owner = UserSerializer()
     assigned_to = UserSerializer()
-    watchers = UserSerializer(many=True)
 
     class Meta:
         model = issue_models.Issue
@@ -148,7 +149,6 @@ class IssueSerializer(CustomAttributesValuesWebhookSerializerMixin, serializers.
 class WikiPageSerializer(serializers.ModelSerializer):
     owner = UserSerializer()
     last_modifier = UserSerializer()
-    watchers = UserSerializer(many=True)
 
     class Meta:
         model = wiki_models.WikiPage

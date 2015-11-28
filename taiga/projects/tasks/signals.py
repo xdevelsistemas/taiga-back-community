@@ -1,6 +1,6 @@
-# Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -16,6 +16,7 @@
 
 from contextlib import suppress
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 
 ####################################
 # Signals for cached prev task
@@ -92,3 +93,13 @@ def _try_to_close_milestone_when_delete_task(instance):
     with suppress(ObjectDoesNotExist):
         if instance.milestone_id and services.calculate_milestone_is_closed(instance.milestone):
             services.close_milestone(instance.milestone)
+
+####################################
+# Signals for set finished date
+####################################
+
+def set_finished_date_when_edit_task(sender, instance, **kwargs):
+    if instance.status.is_closed and not instance.finished_date:
+        instance.finished_date = timezone.now()
+    elif not instance.status.is_closed and instance.finished_date:
+        instance.finished_date = None

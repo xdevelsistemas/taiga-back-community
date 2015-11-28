@@ -1,6 +1,6 @@
-# Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -18,7 +18,10 @@ from django.core.management.base import BaseCommand, CommandError
 
 from taiga.projects.models import Project
 from taiga.export_import.renderers import ExportRenderer
-from taiga.export_import.service import project_to_dict
+from taiga.export_import.service import render_project
+
+
+import resource
 
 
 class Command(BaseCommand):
@@ -34,6 +37,5 @@ class Command(BaseCommand):
             except Project.DoesNotExist:
                 raise CommandError('Project "%s" does not exist' % project_slug)
 
-            data = project_to_dict(project)
             with open('%s.json'%(project_slug), 'w') as outfile:
-                self.renderer.render_to_file(data, outfile, renderer_context=self.renderer_context)
+                render_project(project, outfile)
