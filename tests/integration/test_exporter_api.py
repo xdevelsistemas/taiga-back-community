@@ -1,6 +1,6 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -15,6 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pytest
+
+from unittest import mock
 
 from django.core.urlresolvers import reverse
 
@@ -61,10 +63,16 @@ def test_valid_project_export_with_celery_enabled(client, settings):
 
     url = reverse("exporter-detail", args=[project.pk])
 
-    response = client.get(url, content_type="application/json")
-    assert response.status_code == 202
-    response_data = response.data
-    assert "export_id" in response_data
+    #delete_project_dump task should have been launched
+    with mock.patch('taiga.export_import.tasks.delete_project_dump') as delete_project_dump_mock:
+        response = client.get(url, content_type="application/json")
+        assert response.status_code == 202
+        response_data = response.data
+        assert "export_id" in response_data
+
+        args = (project.id, project.slug, response_data["export_id"],)
+        kwargs = {"countdown": settings.EXPORTS_TTL}
+        delete_project_dump_mock.apply_async.assert_called_once_with(args, **kwargs)
 
 
 def test_valid_project_with_throttling(client, settings):

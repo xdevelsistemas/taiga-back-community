@@ -1,6 +1,6 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -96,6 +96,7 @@ def get_timeline(obj, namespace=None):
     if namespace is not None:
         timeline = timeline.filter(namespace=namespace)
 
+    timeline = timeline.select_related("project")
     timeline = timeline.order_by("-created", "-id")
     return timeline
 
@@ -128,13 +129,10 @@ def filter_timeline_for_user(timeline, user):
 
     # Filtering private projects where user is member
     if not user.is_anonymous():
-        membership_model = apps.get_model('projects', 'Membership')
-        memberships_qs = membership_model.objects.filter(user=user)
-        for membership in memberships_qs:
-            for content_type_key, content_type in content_types.items():
-                if content_type_key in membership.role.permissions or membership.is_owner:
-                    tl_filter |= Q(project=membership.project, data_content_type=content_type)
-            tl_filter |= Q(project=membership.project, data_content_type=membership_content_type)
+        for membership in user.cached_memberships:
+            data_content_types = list(filter(None, [content_types.get(a, None) for a in membership.role.permissions]))
+            data_content_types.append(membership_content_type)
+            tl_filter |= Q(project=membership.project, data_content_type__in=data_content_types)
 
     timeline = timeline.filter(tl_filter)
     return timeline

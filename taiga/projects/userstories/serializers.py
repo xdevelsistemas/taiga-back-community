@@ -1,6 +1,6 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -17,6 +17,7 @@
 from django.apps import apps
 from taiga.base.api import serializers
 from taiga.base.fields import TagsField
+from taiga.base.fields import PickledObjectField
 from taiga.base.fields import PgArrayField
 from taiga.base.neighbors import NeighborsSerializerMixin
 from taiga.base.utils import json
@@ -45,7 +46,8 @@ class RolePointsField(serializers.WritableField):
         return json.loads(obj)
 
 
-class UserStorySerializer(WatchersValidator, VoteResourceSerializerMixin, EditableWatchedResourceModelSerializer, serializers.ModelSerializer):
+class UserStorySerializer(WatchersValidator, VoteResourceSerializerMixin, EditableWatchedResourceModelSerializer,
+                          serializers.ModelSerializer):
     tags = TagsField(default=[], required=False)
     external_reference = PgArrayField(required=False)
     points = RolePointsField(source="role_points", required=False)
@@ -59,6 +61,7 @@ class UserStorySerializer(WatchersValidator, VoteResourceSerializerMixin, Editab
     status_extra_info = BasicUserStoryStatusSerializer(source="status", required=False, read_only=True)
     assigned_to_extra_info = UserBasicInfoSerializer(source="assigned_to", required=False, read_only=True)
     owner_extra_info = UserBasicInfoSerializer(source="owner", required=False, read_only=True)
+    tribe_gig = PickledObjectField(required=False)
 
     class Meta:
         model = models.UserStory
@@ -110,7 +113,9 @@ class UserStoryListSerializer(UserStorySerializer):
 
 class UserStoryNeighborsSerializer(NeighborsSerializerMixin, UserStorySerializer):
     def serialize_neighbor(self, neighbor):
-        return NeighborUserStorySerializer(neighbor).data
+        if neighbor:
+            return NeighborUserStorySerializer(neighbor).data
+        return None
 
 
 class NeighborUserStorySerializer(serializers.ModelSerializer):

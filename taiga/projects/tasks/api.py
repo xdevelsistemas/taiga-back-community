@@ -1,6 +1,6 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -88,6 +88,13 @@ class TaskViewSet(OCCResourceMixin, VotedResourceMixin, HistoryResourceMixin, Wa
     def get_queryset(self):
         qs = super().get_queryset()
         qs = self.attach_votes_attrs_to_queryset(qs)
+        qs = qs.select_related(
+            "milestone",
+            "owner",
+            "assigned_to",
+            "status",
+            "project")
+        
         return self.attach_watchers_attrs_to_queryset(qs)
 
     def pre_save(self, obj):
