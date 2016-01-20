@@ -1,6 +1,6 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -22,8 +22,8 @@ COORS_ALLOWED_ORIGINS = "*"
 COORS_ALLOWED_METHODS = ["POST", "GET", "OPTIONS", "PUT", "DELETE", "PATCH", "HEAD"]
 COORS_ALLOWED_HEADERS = ["content-type", "x-requested-with",
                          "authorization", "accept-encoding",
-                         "x-disable-pagination", "x-host",
-                         "x-session-id"]
+                         "x-disable-pagination", "x-lazy-pagination",
+                         "x-host", "x-session-id"]
 COORS_ALLOWED_CREDENTIALS = True
 COORS_EXPOSE_HEADERS = ["x-pagination-count", "x-paginated", "x-paginated-by",
                         "x-pagination-current", "x-pagination-next", "x-pagination-prev",

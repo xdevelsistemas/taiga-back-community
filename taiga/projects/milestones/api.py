@@ -1,6 +1,6 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.apps import apps
+from django.db.models import Prefetch
 
 from taiga.base import filters
 from taiga.base import response
@@ -25,6 +26,8 @@ from taiga.base.utils.db import get_object_or_none
 
 from taiga.projects.notifications.mixins import WatchedResourceMixin, WatchersViewSetMixin
 from taiga.projects.history.mixins import HistoryResourceMixin
+from taiga.projects.votes.utils import attach_total_voters_to_queryset, attach_is_voter_to_queryset
+from taiga.projects.notifications.utils import attach_watchers_to_queryset, attach_is_watcher_to_queryset
 
 from . import serializers
 from . import models
@@ -62,14 +65,32 @@ class MilestoneViewSet(HistoryResourceMixin, WatchedResourceMixin, ModelCrudView
 
     def get_queryset(self):
         qs = super().get_queryset()
+
+        # Userstories prefetching
+        UserStory = apps.get_model("userstories", "UserStory")
+        us_qs = UserStory.objects.prefetch_related("role_points",
+                                                   "role_points__points",
+                                                   "role_points__role")
+
+        us_qs = us_qs.select_related("milestone",
+                                     "project",
+                                     "status",
+                                     "owner",
+                                     "assigned_to",
+                                     "generated_from_issue")
+
+        us_qs = self.attach_watchers_attrs_to_queryset(us_qs)
+
+        if self.request.user.is_authenticated():
+            us_qs = attach_is_voter_to_queryset(self.request.user, us_qs)
+            us_qs = attach_is_watcher_to_queryset(self.request.user, us_qs)
+
+        qs = qs.prefetch_related(Prefetch("user_stories", queryset=us_qs))
+
+        # Milestones prefetching
+        qs = qs.select_related("project", "owner")
         qs = self.attach_watchers_attrs_to_queryset(qs)
-        qs = qs.prefetch_related("user_stories",
-                                 "user_stories__role_points",
-                                 "user_stories__role_points__points",
-                                 "user_stories__role_points__role",
-                                 "user_stories__generated_from_issue",
-                                 "user_stories__project")
-        qs = qs.select_related("project")
+
         qs = qs.order_by("-estimated_start")
         return qs
 
@@ -92,10 +113,10 @@ class MilestoneViewSet(HistoryResourceMixin, WatchedResourceMixin, ModelCrudView
             'estimated_finish': milestone.estimated_finish,
             'total_points': total_points,
             'completed_points': milestone.closed_points.values(),
-            'total_userstories': milestone.user_stories.count(),
-            'completed_userstories': len([us for us in milestone.user_stories.all() if us.is_closed]),
-            'total_tasks': milestone.tasks.all().count(),
-            'completed_tasks': milestone.tasks.all().filter(status__is_closed=True).count(),
+            'total_userstories': milestone.get_cached_user_stories().count(),
+            'completed_userstories': milestone.get_cached_user_stories().filter(is_closed=True).count(),
+            'total_tasks': milestone.tasks.count(),
+            'completed_tasks': milestone.tasks.filter(status__is_closed=True).count(),
             'iocaine_doses': milestone.tasks.filter(is_iocaine=True).count(),
             'days': []
         }
@@ -104,11 +125,12 @@ class MilestoneViewSet(HistoryResourceMixin, WatchedResourceMixin, ModelCrudView
         optimal_points = sumTotalPoints
         milestone_days = (milestone.estimated_finish - milestone.estimated_start).days
         optimal_points_per_day = sumTotalPoints / milestone_days if milestone_days else 0
+
         while current_date <= milestone.estimated_finish:
             milestone_stats['days'].append({
                 'day': current_date,
                 'name': current_date.day,
-                'open_points':  sumTotalPoints - sum(milestone.closed_points_by_date(current_date).values()),
+                'open_points':  sumTotalPoints - milestone.total_closed_points_by_date(current_date),
                 'optimal_points': optimal_points,
             })
             current_date = current_date + datetime.timedelta(days=1)

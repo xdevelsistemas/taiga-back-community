@@ -1,6 +1,6 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -63,7 +63,7 @@ class ProjectExporterViewSet(mixins.ImportThrottlingPolicyMixin, GenericViewSet)
 
         if settings.CELERY_ENABLED:
             task = tasks.dump_project.delay(request.user, project)
-            tasks.delete_project_dump.apply_async((project.pk, project.slug),
+            tasks.delete_project_dump.apply_async((project.pk, project.slug, task.id),
                                                   countdown=settings.EXPORTS_TTL)
             return response.Accepted({"export_id": task.id})
 

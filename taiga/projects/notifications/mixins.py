@@ -1,6 +1,6 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -53,9 +53,9 @@ class WatchedResourceMixin:
 
     def attach_watchers_attrs_to_queryset(self, queryset):
         qs = attach_watchers_to_queryset(queryset)
-        qs = attach_total_watchers_to_queryset(queryset)
+        qs = attach_total_watchers_to_queryset(qs)
         if self.request.user.is_authenticated():
-            qs = attach_is_watcher_to_queryset(qs, self.request.user)
+            qs = attach_is_watcher_to_queryset(self.request.user, qs)
 
         return qs
 

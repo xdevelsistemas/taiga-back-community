@@ -1,7 +1,7 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
-# Copyright (C) 2014-2015 Anler Hernández <hello@anler.me>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Anler Hernández <hello@anler.me>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -40,7 +40,7 @@ def attach_watchers_to_queryset(queryset, as_field="watchers"):
     return qs
 
 
-def attach_is_watcher_to_queryset(queryset, user, as_field="is_watcher"):
+def attach_is_watcher_to_queryset(user, queryset, as_field="is_watcher"):
     """Attach is_watcher boolean to each object of the queryset.
 
     :param user: A users.User object model

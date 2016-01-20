@@ -1,6 +1,6 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.contrib.contenttypes.models import ContentType
+from django.apps import apps
 
 from taiga.base import response
 from taiga.base.api.utils import get_object_or_404
@@ -46,6 +47,14 @@ class TimelineViewSet(ReadOnlyListViewSet):
         # Switch between paginated or standard style responses
         page = self.paginate_queryset(queryset)
         if page is not None:
+            user_ids = list(set([obj.data.get("user", {}).get("id", None) for obj in page.object_list]))
+            User = apps.get_model("users", "User")
+            users = {u.id: u for u in User.objects.filter(id__in=user_ids)}
+
+            for obj in page.object_list:
+                user_id = obj.data.get("user", {}).get("id", None)
+                obj._prefetched_user = users.get(user_id, None)
+
             serializer = self.get_pagination_serializer(page)
         else:
             serializer = self.get_serializer(queryset, many=True)
@@ -65,6 +74,26 @@ class TimelineViewSet(ReadOnlyListViewSet):
         self.check_permissions(request, "retrieve", obj)
 
         qs = self.get_timeline(obj)
+
+        if request.GET.get("only_relevant", None) is not None:
+            qs = qs.extra(where=[
+                """
+                NOT(
+                    data::text LIKE '%%\"values_diff\": {}%%'
+                    AND
+                    event_type::text = ANY('{issues.issue.change,
+                                             tasks.task.change,
+                                             userstories.userstory.change,
+                                             wiki.wikipage.change}'::text[])
+                )
+                """])
+
+            qs = qs.exclude(event_type__in=["issues.issue.delete",
+                                            "tasks.task.delete",
+                                            "userstories.userstory.delete",
+                                            "wiki.wikipage.delete",
+                                            "projects.project.change"])
+
         return self.response_for_queryset(qs)
 
 

@@ -1,7 +1,7 @@
-# Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
-# Copyright (C) 2014-2015 Jesús Espino <jespinog@gmail.com>
-# Copyright (C) 2014-2015 David Barragán <bameda@dbarragan.com>
-# Copyright (C) 2014-2015 Anler Hernández <hello@anler.me>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Anler Hernández <hello@anler.me>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -24,10 +24,8 @@ def _get_user_project_membership(user, project):
     if user.is_anonymous():
         return None
 
-    try:
-        return Membership.objects.get(user=user, project=project)
-    except Membership.DoesNotExist:
-        return None
+    return user.cached_membership_for_project(project)
+
 
 def _get_object_project(obj):
     project = None
@@ -48,6 +46,8 @@ def is_project_owner(user, obj):
         return True
 
     project = _get_object_project(obj)
+    if project is None:
+        return False
 
     membership = _get_user_project_membership(user, project)
     if membership and membership.is_owner:
