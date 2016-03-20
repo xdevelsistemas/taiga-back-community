@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -14,14 +15,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import hashlib
-import os
-import os.path as path
 import random
 import re
 import uuid
-
-from unidecode import unidecode
 
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
@@ -31,15 +27,13 @@ from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import UserManager, AbstractBaseUser
 from django.core import validators
 from django.utils import timezone
-from django.utils.encoding import force_bytes
-from django.template.defaultfilters import slugify
 
 from django_pgjson.fields import JsonField
 from djorm_pgarray.fields import TextArrayField
 
 from taiga.auth.tokens import get_token_for_user
 from taiga.base.utils.slug import slugify_uniquely
-from taiga.base.utils.iterators import split_by_n
+from taiga.base.utils.files import get_file_path
 from taiga.permissions.permissions import MEMBERS_PERMISSIONS
 from taiga.projects.notifications.choices import NotifyLevel
 
@@ -51,19 +45,7 @@ def generate_random_hex_color():
 
 
 def get_user_file_path(instance, filename):
-    basename = path.basename(filename).lower()
-    base, ext = path.splitext(basename)
-    base = slugify(unidecode(base))
-    basename = "".join([base, ext])
-
-    hs = hashlib.sha256()
-    hs.update(force_bytes(timezone.now().isoformat()))
-    hs.update(os.urandom(1024))
-
-    p1, p2, p3, p4, *p5 = split_by_n(hs.hexdigest(), 1)
-    hash_part = path.join(p1, p2, p3, p4, "".join(p5))
-
-    return path.join("user", hash_part, basename)
+    return get_file_path(instance, filename, "user")
 
 
 class PermissionsMixin(models.Model):
@@ -240,21 +222,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.colorize_tags = True
         self.token = None
         self.set_unusable_password()
-        self.delete_photo()
+        self.photo = None
         self.save()
         self.auth_data.all().delete()
-
-    def delete_photo(self):
-        # Removing thumbnails
-        thumbnailer = get_thumbnailer(self.photo)
-        thumbnailer.delete_thumbnails()
-
-        # Removing original photo
-        if self.photo:
-            storage, path = self.photo.storage, self.photo.path
-            storage.delete(path)
-
-        self.photo = None
 
 
 class Role(models.Model):

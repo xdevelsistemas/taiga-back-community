@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -204,7 +205,8 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
         except Exception:
             raise exc.WrongArguments(_("Invalid dump format"))
 
-        if Project.objects.filter(slug=dump['slug']).exists():
+        slug = dump.get('slug', None)
+        if slug is not None and Project.objects.filter(slug=slug).exists():
             del dump['slug']
 
         if settings.CELERY_ENABLED:

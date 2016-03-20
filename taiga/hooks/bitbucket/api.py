@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -23,6 +24,8 @@ from taiga.hooks.api import BaseWebhookApiViewSet
 
 from . import event_hooks
 
+from netaddr import all_matching_cidrs
+from netaddr.core import AddrFormatError
 from urllib.parse import parse_qs
 from ipware.ip import get_ip
 
@@ -54,7 +57,16 @@ class BitBucketViewSet(BaseWebhookApiViewSet):
         valid_origin_ips = bitbucket_config.get("valid_origin_ips",
                                                 settings.BITBUCKET_VALID_ORIGIN_IPS)
         origin_ip = get_ip(request)
-        if valid_origin_ips and (not origin_ip or origin_ip not in valid_origin_ips):
+        mathching_origin_ip = True
+
+        if valid_origin_ips:
+            try:
+                mathching_origin_ip = len(all_matching_cidrs(origin_ip,valid_origin_ips)) > 0
+
+            except(AddrFormatError, ValueError):
+                mathching_origin_ip = False
+
+        if not mathching_origin_ip:
             return False
 
         return project_secret == secret_key

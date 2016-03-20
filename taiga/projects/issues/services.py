@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -27,7 +28,9 @@ from taiga.base.utils import db, text
 from taiga.projects.issues.apps import (
     connect_issues_signals,
     disconnect_issues_signals)
-from taiga.projects.votes import services as votes_services
+from taiga.projects.votes.utils import attach_total_voters_to_queryset
+from taiga.projects.notifications.utils import attach_watchers_to_queryset
+
 from . import models
 
 
@@ -87,8 +90,20 @@ def issues_to_csv(project, queryset):
                   "attachments", "external_reference", "tags",
                   "watchers", "voters",
                   "created_date", "modified_date", "finished_date"]
-    for custom_attr in project.issuecustomattributes.all():
+
+    custom_attrs = project.issuecustomattributes.all()
+    for custom_attr in custom_attrs:
         fieldnames.append(custom_attr.name)
+
+    queryset = queryset.prefetch_related("attachments",
+                                         "generated_user_stories",
+                                         "custom_attributes_values")
+    queryset = queryset.select_related("owner",
+                                       "assigned_to",
+                                       "status",
+                                       "project")
+    queryset = attach_total_voters_to_queryset(queryset)
+    queryset = attach_watchers_to_queryset(queryset)
 
     writer = csv.DictWriter(csv_data, fieldnames=fieldnames)
     writer.writeheader()
@@ -102,7 +117,7 @@ def issues_to_csv(project, queryset):
             "owner_full_name": issue.owner.get_full_name() if issue.owner else None,
             "assigned_to": issue.assigned_to.username if issue.assigned_to else None,
             "assigned_to_full_name": issue.assigned_to.get_full_name() if issue.assigned_to else None,
-            "status": issue.status.name,
+            "status": issue.status.name if issue.status else None,
             "severity": issue.severity.name,
             "priority": issue.priority.name,
             "type": issue.type.name,
@@ -110,14 +125,14 @@ def issues_to_csv(project, queryset):
             "attachments": issue.attachments.count(),
             "external_reference": issue.external_reference,
             "tags": ",".join(issue.tags or []),
-            "watchers": [u.id for u in issue.get_watchers()],
-            "voters": votes_services.get_voters(issue).count(),
+            "watchers": issue.watchers,
+            "voters": issue.total_voters,
             "created_date": issue.created_date,
             "modified_date": issue.modified_date,
             "finished_date": issue.finished_date,
         }
 
-        for custom_attr in project.issuecustomattributes.all():
+        for custom_attr in custom_attrs:
             value = issue.custom_attributes_values.attributes_values.get(str(custom_attr.id), None)
             issue_data[custom_attr.name] = value
 
@@ -134,21 +149,22 @@ def _get_issues_statuses(project, queryset):
 
     extra_sql = """
         WITH counters AS (
-        	SELECT status_id, count(status_id) count
-        		FROM "issues_issue"
-        		INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
-        		WHERE {where}
-        		GROUP BY status_id
-               )
-        SELECT "projects_issuestatus"."id",
-             "projects_issuestatus"."name",
-             "projects_issuestatus"."color",
-             "projects_issuestatus"."order",
-             COALESCE(counters.count, 0)
-        FROM "projects_issuestatus"
+                SELECT status_id, count(status_id) count
+                  FROM "issues_issue"
+            INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
+                 WHERE {where}
+              GROUP BY status_id
+        )
+
+                 SELECT "projects_issuestatus"."id",
+                        "projects_issuestatus"."name",
+                        "projects_issuestatus"."color",
+                        "projects_issuestatus"."order",
+                        COALESCE(counters.count, 0)
+                   FROM "projects_issuestatus"
         LEFT OUTER JOIN counters ON counters.status_id = projects_issuestatus.id
-        WHERE "projects_issuestatus"."project_id" = %s
-        ORDER BY "projects_issuestatus"."order";
+                  WHERE "projects_issuestatus"."project_id" = %s
+               ORDER BY "projects_issuestatus"."order";
     """.format(where=where)
 
     with closing(connection.cursor()) as cursor:
@@ -175,21 +191,22 @@ def _get_issues_types(project, queryset):
 
     extra_sql = """
         WITH counters AS (
-        	SELECT type_id, count(type_id) count
-        		FROM "issues_issue"
-        		INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
-        		WHERE {where}
-        		GROUP BY type_id
-               )
-        SELECT "projects_issuetype"."id",
-             "projects_issuetype"."name",
-             "projects_issuetype"."color",
-             "projects_issuetype"."order",
-             COALESCE(counters.count, 0)
-        FROM "projects_issuetype"
+                SELECT type_id, count(type_id) count
+                  FROM "issues_issue"
+            INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
+                 WHERE {where}
+              GROUP BY type_id
+        )
+
+                 SELECT "projects_issuetype"."id",
+                        "projects_issuetype"."name",
+                        "projects_issuetype"."color",
+                        "projects_issuetype"."order",
+                        COALESCE(counters.count, 0)
+                   FROM "projects_issuetype"
         LEFT OUTER JOIN counters ON counters.type_id = projects_issuetype.id
-        WHERE "projects_issuetype"."project_id" = %s
-        ORDER BY "projects_issuetype"."order";
+                  WHERE "projects_issuetype"."project_id" = %s
+               ORDER BY "projects_issuetype"."order";
     """.format(where=where)
 
     with closing(connection.cursor()) as cursor:
@@ -216,21 +233,22 @@ def _get_issues_priorities(project, queryset):
 
     extra_sql = """
         WITH counters AS (
-        	SELECT priority_id, count(priority_id) count
-        		FROM "issues_issue"
-        		INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
-        		WHERE {where}
-        		GROUP BY priority_id
-               )
-        SELECT "projects_priority"."id",
-             "projects_priority"."name",
-             "projects_priority"."color",
-             "projects_priority"."order",
-             COALESCE(counters.count, 0)
-        FROM "projects_priority"
+                SELECT priority_id, count(priority_id) count
+                  FROM "issues_issue"
+            INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
+                 WHERE {where}
+              GROUP BY priority_id
+        )
+
+                 SELECT "projects_priority"."id",
+                        "projects_priority"."name",
+                        "projects_priority"."color",
+                        "projects_priority"."order",
+                        COALESCE(counters.count, 0)
+                   FROM "projects_priority"
         LEFT OUTER JOIN counters ON counters.priority_id = projects_priority.id
-        WHERE "projects_priority"."project_id" = %s
-        ORDER BY "projects_priority"."order";
+                  WHERE "projects_priority"."project_id" = %s
+               ORDER BY "projects_priority"."order";
     """.format(where=where)
 
     with closing(connection.cursor()) as cursor:
@@ -257,21 +275,22 @@ def _get_issues_severities(project, queryset):
 
     extra_sql = """
         WITH counters AS (
-        	SELECT severity_id, count(severity_id) count
-        		FROM "issues_issue"
-        		INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
-        		WHERE {where}
-        		GROUP BY severity_id
-               )
-        SELECT "projects_severity"."id",
-             "projects_severity"."name",
-             "projects_severity"."color",
-             "projects_severity"."order",
-             COALESCE(counters.count, 0)
-        FROM "projects_severity"
+                SELECT severity_id, count(severity_id) count
+                  FROM "issues_issue"
+            INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
+                 WHERE {where}
+              GROUP BY severity_id
+        )
+
+                 SELECT "projects_severity"."id",
+                        "projects_severity"."name",
+                        "projects_severity"."color",
+                        "projects_severity"."order",
+                        COALESCE(counters.count, 0)
+                   FROM "projects_severity"
         LEFT OUTER JOIN counters ON counters.severity_id = projects_severity.id
-        WHERE "projects_severity"."project_id" = %s
-        ORDER BY "projects_severity"."order";
+                  WHERE "projects_severity"."project_id" = %s
+               ORDER BY "projects_severity"."order";
     """.format(where=where)
 
     with closing(connection.cursor()) as cursor:
@@ -298,28 +317,30 @@ def _get_issues_assigned_to(project, queryset):
 
     extra_sql = """
         WITH counters AS (
-        	SELECT assigned_to_id,  count(assigned_to_id) count
-        		FROM "issues_issue"
-        		INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
-        		WHERE {where} AND "issues_issue"."assigned_to_id" IS NOT NULL
-        		GROUP BY assigned_to_id
-               )
-        SELECT
-        	"projects_membership"."user_id" user_id,
-        	"users_user"."full_name",
-        	COALESCE("counters".count, 0) count
-        FROM projects_membership
+                SELECT assigned_to_id,  count(assigned_to_id) count
+                  FROM "issues_issue"
+            INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
+                 WHERE {where} AND "issues_issue"."assigned_to_id" IS NOT NULL
+              GROUP BY assigned_to_id
+        )
+
+                SELECT  "projects_membership"."user_id" user_id,
+                        "users_user"."full_name",
+                        "users_user"."username",
+                        COALESCE("counters".count, 0) count
+                   FROM projects_membership
         LEFT OUTER JOIN counters ON ("projects_membership"."user_id" = "counters"."assigned_to_id")
-        INNER JOIN "users_user" ON ("projects_membership"."user_id" = "users_user"."id")
-        WHERE "projects_membership"."project_id" = %s AND "projects_membership"."user_id" IS NOT NULL
+             INNER JOIN "users_user" ON ("projects_membership"."user_id" = "users_user"."id")
+                  WHERE "projects_membership"."project_id" = %s AND "projects_membership"."user_id" IS NOT NULL
 
         -- unassigned issues
         UNION
-        SELECT NULL user_id, NULL,  count(coalesce(assigned_to_id, -1)) count
-        		FROM "issues_issue"
-        		INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
-        		WHERE {where} AND "issues_issue"."assigned_to_id" IS NULL
-        		GROUP BY assigned_to_id
+
+                 SELECT NULL user_id, NULL, NULL, count(coalesce(assigned_to_id, -1)) count
+                   FROM "issues_issue"
+             INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
+                  WHERE {where} AND "issues_issue"."assigned_to_id" IS NULL
+               GROUP BY assigned_to_id
     """.format(where=where)
 
     with closing(connection.cursor()) as cursor:
@@ -328,10 +349,10 @@ def _get_issues_assigned_to(project, queryset):
 
     result = []
     none_valued_added = False
-    for id, full_name, count in rows:
+    for id, full_name, username, count in rows:
         result.append({
             "id": id,
-            "full_name": full_name or "",
+            "full_name": full_name or username or "",
             "count": count,
         })
 
@@ -357,30 +378,32 @@ def _get_issues_owners(project, queryset):
 
     extra_sql = """
         WITH counters AS (
-        	SELECT "issues_issue"."owner_id" owner_id,  count("issues_issue"."owner_id") count
-        		FROM "issues_issue"
-        		INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
-			    WHERE {where}
-        		GROUP BY "issues_issue"."owner_id"
-               )
-        SELECT
-        	"projects_membership"."user_id" id,
-        	"users_user"."full_name",
-        	COALESCE("counters".count, 0) count
-        FROM projects_membership
+                SELECT "issues_issue"."owner_id" owner_id,  count("issues_issue"."owner_id") count
+                  FROM "issues_issue"
+            INNER JOIN "projects_project" ON ("issues_issue"."project_id" = "projects_project"."id")
+                 WHERE {where}
+              GROUP BY "issues_issue"."owner_id"
+        )
+
+                 SELECT "projects_membership"."user_id" id,
+                        "users_user"."full_name",
+                        "users_user"."username",
+                        COALESCE("counters".count, 0) count
+                   FROM projects_membership
         LEFT OUTER JOIN counters ON ("projects_membership"."user_id" = "counters"."owner_id")
-        INNER JOIN "users_user" ON ("projects_membership"."user_id" = "users_user"."id")
-        WHERE ("projects_membership"."project_id" = %s AND "projects_membership"."user_id" IS NOT NULL)
+             INNER JOIN "users_user" ON ("projects_membership"."user_id" = "users_user"."id")
+                  WHERE ("projects_membership"."project_id" = %s AND "projects_membership"."user_id" IS NOT NULL)
 
         -- System users
         UNION
-    		SELECT
-    			"users_user"."id" user_id,
-    			"users_user"."full_name" full_name,
-    			COALESCE("counters".count, 0) count
-    		FROM users_user
-    		LEFT OUTER JOIN counters ON ("users_user"."id" = "counters"."owner_id")
-    		WHERE ("users_user"."is_system" IS TRUE)
+
+                 SELECT "users_user"."id" user_id,
+                        "users_user"."full_name" full_name,
+                        "users_user"."username",
+                        COALESCE("counters".count, 0) count
+                   FROM users_user
+        LEFT OUTER JOIN counters ON ("users_user"."id" = "counters"."owner_id")
+                  WHERE ("users_user"."is_system" IS TRUE)
     """.format(where=where)
 
     with closing(connection.cursor()) as cursor:
@@ -388,11 +411,11 @@ def _get_issues_owners(project, queryset):
         rows = cursor.fetchall()
 
     result = []
-    for id, full_name, count in rows:
+    for id, full_name, username, count in rows:
         if count > 0:
             result.append({
                 "id": id,
-                "full_name": full_name,
+                "full_name": full_name or username or "",
                 "count": count,
             })
     return sorted(result, key=itemgetter("full_name"))

@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -31,7 +32,8 @@ from taiga.projects.userstories.apps import (
     disconnect_userstories_signals)
 
 from taiga.events import events
-from taiga.projects.votes import services as votes_services
+from taiga.projects.votes.utils import attach_total_voters_to_queryset
+from taiga.projects.notifications.utils import attach_watchers_to_queryset
 
 from . import models
 
@@ -104,9 +106,9 @@ def calculate_userstory_is_closed(user_story):
         return False
 
     if user_story.tasks.count() == 0:
-        return user_story.status.is_closed
+        return user_story.status is not None and user_story.status.is_closed
 
-    if all([task.status.is_closed for task in user_story.tasks.all()]):
+    if all([task.status is not None and task.status.is_closed for task in user_story.tasks.all()]):
         return True
 
     return False
@@ -131,8 +133,11 @@ def userstories_to_csv(project,queryset):
     fieldnames = ["ref", "subject", "description", "milestone", "owner",
                   "owner_full_name", "assigned_to", "assigned_to_full_name",
                   "status", "is_closed"]
-    for role in project.roles.filter(computable=True).order_by('name'):
+
+    roles = project.roles.filter(computable=True).order_by('slug')
+    for role in roles:
         fieldnames.append("{}-points".format(role.slug))
+
     fieldnames.append("total-points")
 
     fieldnames += ["backlog_order", "sprint_order", "kanban_order",
@@ -142,8 +147,25 @@ def userstories_to_csv(project,queryset):
                    "tags",
                    "watchers", "voters"]
 
-    for custom_attr in project.userstorycustomattributes.all():
+    custom_attrs = project.userstorycustomattributes.all()
+    for custom_attr in custom_attrs:
         fieldnames.append(custom_attr.name)
+
+    queryset = queryset.prefetch_related("role_points",
+                                         "role_points__points",
+                                         "role_points__role",
+                                         "tasks",
+                                         "attachments",
+                                         "custom_attributes_values")
+    queryset = queryset.select_related("milestone",
+                                       "project",
+                                       "status",
+                                       "owner",
+                                       "assigned_to",
+                                       "generated_from_issue")
+
+    queryset = attach_total_voters_to_queryset(queryset)
+    queryset = attach_watchers_to_queryset(queryset)
 
     writer = csv.DictWriter(csv_data, fieldnames=fieldnames)
     writer.writeheader()
@@ -157,7 +179,7 @@ def userstories_to_csv(project,queryset):
             "owner_full_name": us.owner.get_full_name() if us.owner else None,
             "assigned_to": us.assigned_to.username if us.assigned_to else None,
             "assigned_to_full_name": us.assigned_to.get_full_name() if us.assigned_to else None,
-            "status": us.status.name,
+            "status": us.status.name if us.status else None,
             "is_closed": us.is_closed,
             "backlog_order": us.backlog_order,
             "sprint_order": us.sprint_order,
@@ -172,18 +194,17 @@ def userstories_to_csv(project,queryset):
             "external_reference": us.external_reference,
             "tasks": ",".join([str(task.ref) for task in us.tasks.all()]),
             "tags": ",".join(us.tags or []),
-            "watchers": [u.id for u in us.get_watchers()],
-            "voters": votes_services.get_voters(us).count(),
+            "watchers": us.watchers,
+            "voters": us.total_voters,
         }
 
-        for role in us.project.roles.filter(computable=True).order_by('name'):
-            if us.role_points.filter(role_id=role.id).count() == 1:
-                row["{}-points".format(role.slug)] = us.role_points.get(role_id=role.id).points.value
-            else:
-                row["{}-points".format(role.slug)] = 0
+        us_role_points_by_role_id = {us_rp.role.id: us_rp.points.value for us_rp in us.role_points.all()}
+        for role in roles:
+            row["{}-points".format(role.slug)] = us_role_points_by_role_id.get(role.id, 0)
+
         row['total-points'] = us.get_total_points()
 
-        for custom_attr in project.userstorycustomattributes.all():
+        for custom_attr in custom_attrs:
             value = us.custom_attributes_values.attributes_values.get(str(custom_attr.id), None)
             row[custom_attr.name] = value
 
@@ -237,28 +258,30 @@ def _get_userstories_assigned_to(project, queryset):
 
     extra_sql = """
         WITH counters AS (
-        	SELECT assigned_to_id,  count(assigned_to_id) count
-        		FROM "userstories_userstory"
-        		INNER JOIN "projects_project" ON ("userstories_userstory"."project_id" = "projects_project"."id")
-        		WHERE {where} AND "userstories_userstory"."assigned_to_id" IS NOT NULL
-        		GROUP BY assigned_to_id
-               )
-        SELECT
-        	"projects_membership"."user_id" user_id,
-        	"users_user"."full_name",
-        	COALESCE("counters".count, 0) count
-        FROM projects_membership
+                SELECT assigned_to_id,  count(assigned_to_id) count
+                  FROM "userstories_userstory"
+            INNER JOIN "projects_project" ON ("userstories_userstory"."project_id" = "projects_project"."id")
+                 WHERE {where} AND "userstories_userstory"."assigned_to_id" IS NOT NULL
+              GROUP BY assigned_to_id
+        )
+
+                 SELECT "projects_membership"."user_id" user_id,
+                        "users_user"."full_name",
+                        "users_user"."username",
+                        COALESCE("counters".count, 0) count
+                   FROM projects_membership
         LEFT OUTER JOIN counters ON ("projects_membership"."user_id" = "counters"."assigned_to_id")
-        INNER JOIN "users_user" ON ("projects_membership"."user_id" = "users_user"."id")
-        WHERE "projects_membership"."project_id" = %s AND "projects_membership"."user_id" IS NOT NULL
+             INNER JOIN "users_user" ON ("projects_membership"."user_id" = "users_user"."id")
+                  WHERE "projects_membership"."project_id" = %s AND "projects_membership"."user_id" IS NOT NULL
 
         -- unassigned userstories
         UNION
-        SELECT NULL user_id, NULL,  count(coalesce(assigned_to_id, -1)) count
-        		FROM "userstories_userstory"
-        		INNER JOIN "projects_project" ON ("userstories_userstory"."project_id" = "projects_project"."id")
-        		WHERE {where} AND "userstories_userstory"."assigned_to_id" IS NULL
-        		GROUP BY assigned_to_id
+
+                 SELECT NULL user_id, NULL, NULL, count(coalesce(assigned_to_id, -1)) count
+                   FROM "userstories_userstory"
+             INNER JOIN "projects_project" ON ("userstories_userstory"."project_id" = "projects_project"."id")
+                  WHERE {where} AND "userstories_userstory"."assigned_to_id" IS NULL
+               GROUP BY assigned_to_id
     """.format(where=where)
 
     with closing(connection.cursor()) as cursor:
@@ -267,13 +290,13 @@ def _get_userstories_assigned_to(project, queryset):
 
     result = []
     none_valued_added = False
-    for id, full_name, count in rows:
+    for id, full_name, username, count in rows:
         result.append({
             "id": id,
-            "full_name": full_name or "",
+            "full_name": full_name or username or "",
             "count": count,
         })
-        
+
         if id is None:
             none_valued_added = True
 
@@ -296,30 +319,32 @@ def _get_userstories_owners(project, queryset):
 
     extra_sql = """
         WITH counters AS (
-        	SELECT "userstories_userstory"."owner_id" owner_id,  count(coalesce("userstories_userstory"."owner_id", -1)) count
-        		FROM "userstories_userstory"
-        		INNER JOIN "projects_project" ON ("userstories_userstory"."project_id" = "projects_project"."id")
-			    WHERE {where}
-        		GROUP BY "userstories_userstory"."owner_id"
-               )
-        SELECT
-        	"projects_membership"."user_id" id,
-        	"users_user"."full_name",
-        	COALESCE("counters".count, 0) count
-        FROM projects_membership
+                SELECT "userstories_userstory"."owner_id" owner_id,  count(coalesce("userstories_userstory"."owner_id", -1)) count
+                  FROM "userstories_userstory"
+            INNER JOIN "projects_project" ON ("userstories_userstory"."project_id" = "projects_project"."id")
+                 WHERE {where}
+              GROUP BY "userstories_userstory"."owner_id"
+        )
+
+                 SELECT "projects_membership"."user_id" id,
+                        "users_user"."full_name",
+                        "users_user"."username",
+                        COALESCE("counters".count, 0) count
+                   FROM projects_membership
         LEFT OUTER JOIN counters ON ("projects_membership"."user_id" = "counters"."owner_id")
-        INNER JOIN "users_user" ON ("projects_membership"."user_id" = "users_user"."id")
-        WHERE ("projects_membership"."project_id" = %s AND "projects_membership"."user_id" IS NOT NULL)
+             INNER JOIN "users_user" ON ("projects_membership"."user_id" = "users_user"."id")
+                  WHERE ("projects_membership"."project_id" = %s AND "projects_membership"."user_id" IS NOT NULL)
 
         -- System users
         UNION
-    		SELECT
-    			"users_user"."id" user_id,
-    			"users_user"."full_name" full_name,
-    			COALESCE("counters".count, 0) count
-    		FROM users_user
-    		LEFT OUTER JOIN counters ON ("users_user"."id" = "counters"."owner_id")
-    		WHERE ("users_user"."is_system" IS TRUE)
+
+                 SELECT "users_user"."id" user_id,
+                        "users_user"."full_name" full_name,
+                        "users_user"."username" username,
+                        COALESCE("counters".count, 0) count
+                   FROM users_user
+        LEFT OUTER JOIN counters ON ("users_user"."id" = "counters"."owner_id")
+                  WHERE ("users_user"."is_system" IS TRUE)
     """.format(where=where)
 
     with closing(connection.cursor()) as cursor:
@@ -327,11 +352,11 @@ def _get_userstories_owners(project, queryset):
         rows = cursor.fetchall()
 
     result = []
-    for id, full_name, count in rows:
+    for id, full_name, username, count in rows:
         if count > 0:
             result.append({
                 "id": id,
-                "full_name": full_name,
+                "full_name": full_name or username or "",
                 "count": count,
             })
     return sorted(result, key=itemgetter("full_name"))

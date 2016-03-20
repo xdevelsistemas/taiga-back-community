@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -26,7 +27,7 @@ from taiga.base.utils.iterators import as_tuple
 from taiga.base.utils.iterators import as_dict
 from taiga.mdrender.service import render as mdrender
 
-from taiga.projects.attachments.services import get_timeline_image_thumbnailer_url
+from taiga.projects.attachments.services import get_timeline_image_thumbnail_url
 
 import os
 
@@ -177,7 +178,7 @@ def _generic_extract(obj:object, fields:list, default=None) -> dict:
 @as_tuple
 def extract_attachments(obj) -> list:
     for attach in obj.attachments.all():
-        thumb_url = get_timeline_image_thumbnailer_url(attach)
+        thumb_url = get_timeline_image_thumbnail_url(attach)
 
         yield {"id": attach.id,
                "filename": os.path.basename(attach.attached_file.name),
@@ -265,7 +266,7 @@ def userstory_freezer(us) -> dict:
     snapshot = {
         "ref": us.ref,
         "owner": us.owner_id,
-        "status": us.status_id,
+        "status": us.status.id if us.status else None,
         "is_closed": us.is_closed,
         "finish_date": str(us.finish_date),
         "backlog_order": us.backlog_order,
@@ -296,7 +297,7 @@ def issue_freezer(issue) -> dict:
     snapshot = {
         "ref": issue.ref,
         "owner": issue.owner_id,
-        "status": issue.status_id,
+        "status": issue.status.id if issue.status else None,
         "priority": issue.priority_id,
         "severity": issue.severity_id,
         "type": issue.type_id,
@@ -320,7 +321,7 @@ def task_freezer(task) -> dict:
     snapshot = {
         "ref": task.ref,
         "owner": task.owner_id,
-        "status": task.status_id,
+        "status": task.status.id if task.status else None,
         "milestone": task.milestone_id,
         "subject": task.subject,
         "description": task.description,

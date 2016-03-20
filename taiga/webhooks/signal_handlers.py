@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -44,7 +45,11 @@ def on_new_history_entry(sender, instance, created, **kwargs):
 
     model = history_service.get_model_from_key(instance.key)
     pk = history_service.get_pk_from_key(instance.key)
-    obj = model.objects.get(pk=pk)
+    try:
+        obj = model.objects.get(pk=pk)
+    except model.DoesNotExist:
+        # Catch simultaneous DELETE request
+        return None
 
     webhooks = _get_project_webhooks(obj.project)
 

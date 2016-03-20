@@ -1,6 +1,6 @@
 The PRIMARY AUTHORS are:
 
-- Andrey Antukh <niwi@niwi.be>
+- Andrey Antukh <niwi@niwi.nz>
 - Jesus Espino Garcia <jespinog@gmail.com>
 - David Barragán Merino <dbarragan@dbarragan.com>
 - Alejandro Alonso <alejandro.alonso@kaleidos.net>
@@ -20,6 +20,7 @@ answer newbie questions, and generally made taiga that much better:
 - Andrea Stagi <stagi.andrea@gmail.com>
 - Andrés Moya <andres.moya@kaleidos.net>
 - Andrey Alekseenko <al42and@gmail.com>
+- Bruno Clermont <bruno@robotinfra.com>
 - Chris Wilson <chris.wilson@aridhia.com>
 - David Burke <david@burkesoftware.com>
 - Hector Colina <hcolina@gmail.com>

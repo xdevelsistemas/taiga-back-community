@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -99,6 +100,8 @@ def _try_to_close_milestone_when_delete_task(instance):
 ####################################
 
 def set_finished_date_when_edit_task(sender, instance, **kwargs):
+    if instance.status is None:
+        return
     if instance.status.is_closed and not instance.finished_date:
         instance.finished_date = timezone.now()
     elif not instance.status.is_closed and instance.finished_date:

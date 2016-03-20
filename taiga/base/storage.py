@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -40,7 +41,7 @@ class FileSystemStorage(storage.FileSystemStorage):
         # Note that there is a race between os.path.exists and os.makedirs:
         # if os.makedirs fails with EEXIST, the directory was created
         # concurrently, and we can continue normally. Refs #16082.
-        directory = os.path.dirname(name)
+        directory = os.path.join(settings.MEDIA_ROOT, os.path.dirname(name))
         if not os.path.exists(directory):
             try:
                 if self.directory_permissions_mode is not None:

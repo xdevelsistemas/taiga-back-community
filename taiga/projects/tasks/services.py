@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -23,7 +24,8 @@ from taiga.projects.tasks.apps import (
     connect_tasks_signals,
     disconnect_tasks_signals)
 from taiga.events import events
-from taiga.projects.votes import services as votes_services
+from taiga.projects.votes.utils import attach_total_voters_to_queryset
+from taiga.projects.notifications.utils import attach_watchers_to_queryset
 
 from . import models
 
@@ -98,8 +100,21 @@ def tasks_to_csv(project, queryset):
                   "status", "is_iocaine", "is_closed", "us_order",
                   "taskboard_order", "attachments", "external_reference", "tags",
                   "watchers", "voters"]
-    for custom_attr in project.taskcustomattributes.all():
+
+    custom_attrs = project.taskcustomattributes.all()
+    for custom_attr in custom_attrs:
         fieldnames.append(custom_attr.name)
+
+    queryset = queryset.prefetch_related("attachments",
+                                         "custom_attributes_values")
+    queryset = queryset.select_related("milestone",
+                                       "owner",
+                                       "assigned_to",
+                                       "status",
+                                       "project")
+
+    queryset = attach_total_voters_to_queryset(queryset)
+    queryset = attach_watchers_to_queryset(queryset)
 
     writer = csv.DictWriter(csv_data, fieldnames=fieldnames)
     writer.writeheader()
@@ -114,18 +129,18 @@ def tasks_to_csv(project, queryset):
             "owner_full_name": task.owner.get_full_name() if task.owner else None,
             "assigned_to": task.assigned_to.username if task.assigned_to else None,
             "assigned_to_full_name": task.assigned_to.get_full_name() if task.assigned_to else None,
-            "status": task.status.name,
+            "status": task.status.name if task.status else None,
             "is_iocaine": task.is_iocaine,
-            "is_closed": task.status.is_closed,
+            "is_closed": task.status is not None and task.status.is_closed,
             "us_order": task.us_order,
             "taskboard_order": task.taskboard_order,
             "attachments": task.attachments.count(),
             "external_reference": task.external_reference,
             "tags": ",".join(task.tags or []),
-            "watchers": [u.id for u in task.get_watchers()],
-            "voters": votes_services.get_voters(task).count(),
+            "watchers": task.watchers,
+            "voters": task.total_voters,
         }
-        for custom_attr in project.taskcustomattributes.all():
+        for custom_attr in custom_attrs:
             value = task.custom_attributes_values.attributes_values.get(str(custom_attr.id), None)
             task_data[custom_attr.name] = value
 

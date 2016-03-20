@@ -1,6 +1,7 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # Copyright (C) 2014-2016 Anler Hernández <hello@anler.me>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -116,5 +117,5 @@ def set_base_permissions_for_project(project):
         If a project is public anonymous and registered users should have at least visualization permissions
         """
         anon_permissions = list(map(lambda perm: perm[0], ANON_PERMISSIONS))
-        project.anon_permissions = list(set(project.anon_permissions + anon_permissions))
-        project.public_permissions = list(set(project.public_permissions + anon_permissions))
+        project.anon_permissions = list(set((project.anon_permissions or []) + anon_permissions))
+        project.public_permissions = list(set((project.public_permissions or []) + anon_permissions))
