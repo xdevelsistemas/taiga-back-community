@@ -15,9 +15,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from django.db.transaction import atomic
+
+from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 
-from taiga.projects.models import Membership
+from taiga.projects.models import Membership, Project
+from taiga.users import services as users_service
 
 from . import serializers
 from . import service
@@ -87,9 +91,23 @@ def store_tags_colors(project, data):
     return None
 
 
+@method_decorator(atomic)
 def dict_to_project(data, owner=None):
     if owner:
-        data["owner"] = owner
+        data["owner"] = owner.email
+
+        # Validate if the owner can have this project
+        is_private = data.get("is_private", False)
+        total_memberships = len([m for m in data.get("memberships", [])
+                                            if m.get("email", None) != data["owner"]])
+        total_memberships = total_memberships + 1 # 1 is the owner
+        (enough_slots, error_message) = users_service.has_available_slot_for_import_new_project(
+            owner,
+            is_private,
+            total_memberships
+        )
+        if not enough_slots:
+            raise TaigaImportError(error_message)
 
     project_serialized = service.store_project(data)
 
@@ -138,7 +156,7 @@ def dict_to_project(data, owner=None):
                 email=proj.owner.email,
                 user=proj.owner,
                 role=proj.roles.all().first(),
-                is_owner=True
+                is_admin=True
             )
 
     if service.get_errors(clear=False):

@@ -20,6 +20,7 @@ This model contains a domain logic for users application.
 """
 
 from django.apps import apps
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.db import connection
 from django.conf import settings
@@ -40,7 +41,7 @@ from .gravatar import get_gravatar_url
 
 
 def get_user_by_username_or_email(username_or_email):
-    user_model = apps.get_model("users", "User")
+    user_model = get_user_model()
     qs = user_model.objects.filter(Q(username__iexact=username_or_email) |
                                    Q(email__iexact=username_or_email))
 
@@ -123,7 +124,7 @@ def get_visible_project_ids(from_user, by_user):
         #- The to user is the owner
         member_perm_conditions |= \
             Q(project__id__in=by_user_project_ids, role__permissions__contains=required_permissions) |\
-            Q(project__id__in=by_user_project_ids, is_owner=True)
+            Q(project__id__in=by_user_project_ids, is_admin=True)
 
     Membership = apps.get_model('projects', 'Membership')
     #Calculating the user memberships adding the permission filter for the by user
@@ -322,7 +323,7 @@ def get_watched_list(for_user, from_user, type=None, q=None):
     -- BEGIN Basic info: we need to mix info from different tables and denormalize it
     SELECT entities.*,
            projects_project.name as project_name, projects_project.description as description, projects_project.slug as project_slug, projects_project.is_private as project_is_private,
-           projects_project.tags_colors, projects_project.logo,
+           projects_project.blocked_code as project_blocked_code, projects_project.tags_colors, projects_project.logo,
            users_user.username assigned_to_username, users_user.full_name assigned_to_full_name, users_user.photo assigned_to_photo, users_user.email assigned_to_email
         FROM (
             {userstories_sql}
@@ -417,7 +418,7 @@ def get_liked_list(for_user, from_user, type=None, q=None):
     -- BEGIN Basic info: we need to mix info from different tables and denormalize it
     SELECT entities.*,
            projects_project.name as project_name, projects_project.description as description, projects_project.slug as project_slug, projects_project.is_private as project_is_private,
-           projects_project.tags_colors, projects_project.logo,
+           projects_project.blocked_code as project_blocked_code, projects_project.tags_colors, projects_project.logo,
            users_user.username assigned_to_username, users_user.full_name assigned_to_full_name, users_user.photo assigned_to_photo, users_user.email assigned_to_email
         FROM (
             {projects_sql}
@@ -500,7 +501,7 @@ def get_voted_list(for_user, from_user, type=None, q=None):
     -- BEGIN Basic info: we need to mix info from different tables and denormalize it
     SELECT entities.*,
            projects_project.name as project_name, projects_project.description as description, projects_project.slug as project_slug, projects_project.is_private as project_is_private,
-           projects_project.tags_colors, projects_project.logo,
+           projects_project.blocked_code as project_blocked_code, projects_project.tags_colors, projects_project.logo,
            users_user.username assigned_to_username, users_user.full_name assigned_to_full_name, users_user.photo assigned_to_photo, users_user.email assigned_to_email
         FROM (
             {userstories_sql}
@@ -572,3 +573,28 @@ def get_voted_list(for_user, from_user, type=None, q=None):
         dict(zip([col[0] for col in desc], row))
         for row in cursor.fetchall()
     ]
+
+
+def has_available_slot_for_import_new_project(owner, is_private, total_memberships):
+    if is_private:
+        current_projects = owner.owned_projects.filter(is_private=True).count()
+        max_projects = owner.max_private_projects
+        error_project_exceeded =  _("You can't have more private projects")
+
+        max_memberships = owner.max_memberships_private_projects
+        error_memberships_exceeded = _("This project reaches your current limit of memberships for private projects")
+    else:
+        current_projects = owner.owned_projects.filter(is_private=False).count()
+        max_projects = owner.max_public_projects
+        error_project_exceeded = _("You can't have more public projects")
+
+        max_memberships = owner.max_memberships_public_projects
+        error_memberships_exceeded = _("This project reaches your current limit of memberships for public projects")
+
+    if max_projects is not None and current_projects >= max_projects:
+        return (False, error_project_exceeded)
+
+    if max_memberships is not None and total_memberships > max_memberships:
+        return (False, error_memberships_exceeded)
+
+    return (True, None)

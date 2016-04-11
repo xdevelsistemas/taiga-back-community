@@ -36,6 +36,7 @@ from taiga.projects.models import Project, Membership
 from taiga.projects.issues.models import Issue
 from taiga.projects.tasks.models import Task
 from taiga.projects.serializers import ProjectSerializer
+from taiga.users import services as users_service
 
 from . import mixins
 from . import serializers
@@ -90,6 +91,19 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
         data = request.DATA.copy()
         data['owner'] = data.get('owner', request.user.email)
 
+        # Validate if the project can be imported
+        is_private = data.get('is_private', False)
+        total_memberships = len([m for m in data.get("memberships", [])
+                                            if m.get("email", None) != data["owner"]])
+        total_memberships = total_memberships + 1 # 1 is the owner
+        (enough_slots, error_message) = users_service.has_available_slot_for_import_new_project(
+            self.request.user,
+            is_private,
+            total_memberships
+        )
+        if not enough_slots:
+            raise exc.NotEnoughSlotsForProject(is_private, total_memberships, error_message)
+
         # Create Project
         project_serialized = service.store_project(data)
 
@@ -110,7 +124,7 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
 
         try:
             owner_membership = project_serialized.object.memberships.get(user=project_serialized.object.owner)
-            owner_membership.is_owner = True
+            owner_membership.is_admin = True
             owner_membership.save()
         except Membership.DoesNotExist:
             Membership.objects.create(
@@ -118,7 +132,7 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
                 email=project_serialized.object.owner.email,
                 user=project_serialized.object.owner,
                 role=project_serialized.object.roles.all().first(),
-                is_owner=True
+                is_admin=True
             )
 
         # Create project values choicess
@@ -182,40 +196,6 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
         response_data['id'] = project_serialized.object.id
         headers = self.get_success_headers(response_data)
         return response.Created(response_data, headers=headers)
-
-    @list_route(methods=["POST"])
-    @method_decorator(atomic)
-    def load_dump(self, request):
-        throttle = throttling.ImportDumpModeRateThrottle()
-
-        if not throttle.allow_request(request, self):
-            self.throttled(request, throttle.wait())
-
-        self.check_permissions(request, "load_dump", None)
-
-        dump = request.FILES.get('dump', None)
-
-        if not dump:
-            raise exc.WrongArguments(_("Needed dump file"))
-
-        reader = codecs.getreader("utf-8")
-
-        try:
-            dump = json.load(reader(dump))
-        except Exception:
-            raise exc.WrongArguments(_("Invalid dump format"))
-
-        slug = dump.get('slug', None)
-        if slug is not None and Project.objects.filter(slug=slug).exists():
-            del dump['slug']
-
-        if settings.CELERY_ENABLED:
-            task = tasks.load_project_dump.delay(request.user, dump)
-            return response.Accepted({"import_id": task.id})
-
-        project = dump_service.dict_to_project(dump, request.user.email)
-        response_data = ProjectSerializer(project).data
-        return response.Created(response_data)
 
     @detail_route(methods=['post'])
     @method_decorator(atomic)
@@ -312,3 +292,54 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
 
         headers = self.get_success_headers(wiki_link.data)
         return response.Created(wiki_link.data, headers=headers)
+
+    @list_route(methods=["POST"])
+    @method_decorator(atomic)
+    def load_dump(self, request):
+        throttle = throttling.ImportDumpModeRateThrottle()
+
+        if not throttle.allow_request(request, self):
+            self.throttled(request, throttle.wait())
+
+        self.check_permissions(request, "load_dump", None)
+
+        dump = request.FILES.get('dump', None)
+
+        if not dump:
+            raise exc.WrongArguments(_("Needed dump file"))
+
+        reader = codecs.getreader("utf-8")
+
+        try:
+            dump = json.load(reader(dump))
+        except Exception:
+            raise exc.WrongArguments(_("Invalid dump format"))
+
+        slug = dump.get('slug', None)
+        if slug is not None and Project.objects.filter(slug=slug).exists():
+            del dump['slug']
+
+        user = request.user
+        dump['owner'] = user.email
+
+        # Validate if the project can be imported
+        is_private = dump.get("is_private", False)
+        total_memberships = len([m for m in dump.get("memberships", [])
+                                            if m.get("email", None) != dump["owner"]])
+        total_memberships = total_memberships + 1 # 1 is the owner
+        (enough_slots, error_message) = users_service.has_available_slot_for_import_new_project(
+            user,
+            is_private,
+            total_memberships
+        )
+        if not enough_slots:
+            raise exc.NotEnoughSlotsForProject(is_private, total_memberships, error_message)
+
+        if settings.CELERY_ENABLED:
+            task = tasks.load_project_dump.delay(user, dump)
+            return response.Accepted({"import_id": task.id})
+
+        project = dump_service.dict_to_project(dump, request.user)
+        response_data = ProjectSerializer(project).data
+        return response.Created(response_data)
+

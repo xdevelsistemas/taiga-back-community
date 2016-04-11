@@ -11,6 +11,7 @@ from taiga.base.utils import json
 from taiga.hooks.bitbucket import event_hooks
 from taiga.hooks.bitbucket.api import BitBucketViewSet
 from taiga.hooks.exceptions import ActionSyntaxException
+from taiga.projects import choices as project_choices
 from taiga.projects.issues.models import Issue
 from taiga.projects.tasks.models import Task
 from taiga.projects.userstories.models import UserStory
@@ -100,6 +101,26 @@ def test_ok_signature_invalid_network(client):
 
     assert response.status_code == 400
     assert "Bad signature" in response.data["_error_message"]
+
+
+def test_blocked_project(client):
+    project = f.ProjectFactory(blocked_code=project_choices.BLOCKED_BY_STAFF)
+    f.ProjectModulesConfigFactory(project=project, config={
+        "bitbucket": {
+            "secret": "tpnIwJDz4e"
+        }
+    })
+
+    url = reverse("bitbucket-hook-list")
+    url = "{}?project={}&key={}".format(url, project.id, "tpnIwJDz4e")
+    data = json.dumps({"push": {"changes": [{"new": {"target": { "message": "test message"}}}]}})
+    response = client.post(url,
+                           data,
+                           content_type="application/json",
+                           HTTP_X_EVENT_KEY="repo:push",
+                           REMOTE_ADDR=settings.BITBUCKET_VALID_ORIGIN_IPS[0])
+
+    assert response.status_code == 451
 
 
 def test_invalid_ip(client):
@@ -205,7 +226,17 @@ def test_push_event_issue_processing(client):
     f.MembershipFactory(project=creation_status.project, role=role, user=creation_status.project.owner)
     new_status = f.IssueStatusFactory(project=creation_status.project)
     issue = f.IssueFactory.create(status=creation_status, project=creation_status.project, owner=creation_status.project.owner)
-    payload = {"push": {"changes": [{"new": {"target": { "message": "test message   test   TG-%s    #%s   ok   bye!" % (issue.ref, new_status.slug)}}}]}}
+    payload = {
+        "push": {
+            "changes": [
+                {
+                    "commits": [
+                        { "message": "test message   test   TG-%s    #%s   ok   bye!" % (issue.ref, new_status.slug) }
+                    ]
+                }
+            ]
+        }
+    }
     mail.outbox = []
     ev_hook = event_hooks.PushEventHook(issue.project, payload)
     ev_hook.process_event()
@@ -220,7 +251,17 @@ def test_push_event_task_processing(client):
     f.MembershipFactory(project=creation_status.project, role=role, user=creation_status.project.owner)
     new_status = f.TaskStatusFactory(project=creation_status.project)
     task = f.TaskFactory.create(status=creation_status, project=creation_status.project, owner=creation_status.project.owner)
-    payload = {"push": {"changes": [{"new": {"target": { "message": "test message   test   TG-%s    #%s   ok   bye!" % (task.ref, new_status.slug)}}}]}}
+    payload = {
+        "push": {
+            "changes": [
+                {
+                    "commits": [
+                        { "message": "test message   test   TG-%s    #%s   ok   bye!" % (task.ref, new_status.slug) }
+                    ]
+                }
+            ]
+        }
+    }
     mail.outbox = []
     ev_hook = event_hooks.PushEventHook(task.project, payload)
     ev_hook.process_event()
@@ -235,7 +276,17 @@ def test_push_event_user_story_processing(client):
     f.MembershipFactory(project=creation_status.project, role=role, user=creation_status.project.owner)
     new_status = f.UserStoryStatusFactory(project=creation_status.project)
     user_story = f.UserStoryFactory.create(status=creation_status, project=creation_status.project, owner=creation_status.project.owner)
-    payload = {"push": {"changes": [{"new": {"target": { "message": "test message   test   TG-%s    #%s   ok   bye!" % (user_story.ref, new_status.slug)}}}]}}
+    payload = {
+        "push": {
+            "changes": [
+                {
+                    "commits": [
+                        { "message": "test message   test   TG-%s    #%s   ok   bye!" % (user_story.ref, new_status.slug) }
+                    ]
+                }
+            ]
+        }
+    }
     mail.outbox = []
     ev_hook = event_hooks.PushEventHook(user_story.project, payload)
     ev_hook.process_event()
@@ -251,7 +302,17 @@ def test_push_event_multiple_actions(client):
     new_status = f.IssueStatusFactory(project=creation_status.project)
     issue1 = f.IssueFactory.create(status=creation_status, project=creation_status.project, owner=creation_status.project.owner)
     issue2 = f.IssueFactory.create(status=creation_status, project=creation_status.project, owner=creation_status.project.owner)
-    payload = {"push": {"changes": [{"new": {"target": { "message": "test message   test   TG-%s    #%s   ok  test   TG-%s    #%s   ok  bye!" % (issue1.ref, new_status.slug, issue2.ref, new_status.slug)}}}]}}
+    payload = {
+        "push": {
+            "changes": [
+                {
+                    "commits": [
+                        { "message": "test message   test   TG-%s    #%s   ok  test   TG-%s    #%s   ok  bye!" % (issue1.ref, new_status.slug, issue2.ref, new_status.slug) }
+                    ]
+                }
+            ]
+        }
+    }
     mail.outbox = []
     ev_hook1 = event_hooks.PushEventHook(issue1.project, payload)
     ev_hook1.process_event()
@@ -268,7 +329,17 @@ def test_push_event_processing_case_insensitive(client):
     f.MembershipFactory(project=creation_status.project, role=role, user=creation_status.project.owner)
     new_status = f.TaskStatusFactory(project=creation_status.project)
     task = f.TaskFactory.create(status=creation_status, project=creation_status.project, owner=creation_status.project.owner)
-    payload = {"push": {"changes": [{"new": {"target": { "message": "test message   test   TG-%s    #%s   ok   bye!" % (task.ref, new_status.slug)}}}]}}
+    payload = {
+        "push": {
+            "changes": [
+                {
+                    "commits": [
+                        { "message": "test message   test   TG-%s    #%s   ok   bye!" % (task.ref, new_status.slug) }
+                    ]
+                }
+            ]
+        }
+    }
     mail.outbox = []
     ev_hook = event_hooks.PushEventHook(task.project, payload)
     ev_hook.process_event()
@@ -279,7 +350,17 @@ def test_push_event_processing_case_insensitive(client):
 
 def test_push_event_task_bad_processing_non_existing_ref(client):
     issue_status = f.IssueStatusFactory()
-    payload = {"push": {"changes": [{"new": {"target": { "message": "test message   test   TG-6666666    #%s   ok   bye!" % (issue_status.slug)}}}]}}
+    payload = {
+        "push": {
+            "changes": [
+                {
+                    "commits": [
+                        { "message": "test message   test   TG-6666666    #%s   ok   bye!" % (issue_status.slug) }
+                    ]
+                }
+            ]
+        }
+    }
     mail.outbox = []
 
     ev_hook = event_hooks.PushEventHook(issue_status.project, payload)
@@ -292,7 +373,17 @@ def test_push_event_task_bad_processing_non_existing_ref(client):
 
 def test_push_event_us_bad_processing_non_existing_status(client):
     user_story = f.UserStoryFactory.create()
-    payload = {"push": {"changes": [{"new": {"target": { "message": "test message   test   TG-%s    #non-existing-slug   ok   bye!" % (user_story.ref)}}}]}}
+    payload = {
+        "push": {
+            "changes": [
+                {
+                    "commits": [
+                        { "message": "test message   test   TG-%s    #non-existing-slug   ok   bye!" % (user_story.ref) }
+                    ]
+                }
+            ]
+        }
+    }
 
     mail.outbox = []
 
@@ -306,7 +397,17 @@ def test_push_event_us_bad_processing_non_existing_status(client):
 
 def test_push_event_bad_processing_non_existing_status(client):
     issue = f.IssueFactory.create()
-    payload = {"push": {"changes": [{"new": {"target": { "message": "test message   test   TG-%s    #non-existing-slug   ok   bye!" % (issue.ref)}}}]}}
+    payload = {
+        "push": {
+            "changes": [
+                {
+                    "commits": [
+                        { "message": "test message   test   TG-%s    #non-existing-slug   ok   bye!" % (issue.ref) }
+                    ]
+                }
+            ]
+        }
+    }
     mail.outbox = []
 
     ev_hook = event_hooks.PushEventHook(issue.project, payload)
@@ -324,7 +425,7 @@ def test_issues_event_opened_issue(client):
     issue.project.default_severity = issue.severity
     issue.project.default_priority = issue.priority
     issue.project.save()
-    Membership.objects.create(user=issue.owner, project=issue.project, role=f.RoleFactory.create(project=issue.project), is_owner=True)
+    Membership.objects.create(user=issue.owner, project=issue.project, role=f.RoleFactory.create(project=issue.project), is_admin=True)
     notify_policy = NotifyPolicy.objects.get(user=issue.owner, project=issue.project)
     notify_policy.notify_level = NotifyLevel.all
     notify_policy.save()
@@ -530,7 +631,7 @@ def test_issues_event_bad_comment(client):
 
 def test_api_get_project_modules(client):
     project = f.create_project()
-    f.MembershipFactory(project=project, user=project.owner, is_owner=True)
+    f.MembershipFactory(project=project, user=project.owner, is_admin=True)
 
     url = reverse("projects-modules", args=(project.id,))
 
@@ -545,7 +646,7 @@ def test_api_get_project_modules(client):
 
 def test_api_patch_project_modules(client):
     project = f.create_project()
-    f.MembershipFactory(project=project, user=project.owner, is_owner=True)
+    f.MembershipFactory(project=project, user=project.owner, is_admin=True)
 
     url = reverse("projects-modules", args=(project.id,))
 
