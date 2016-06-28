@@ -1,7 +1,6 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
-# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -123,9 +122,6 @@ def replace_github_references(project_url, wiki_text):
 
 class IssuesEventHook(BaseEventHook):
     def process_event(self):
-        if self.payload.get('action', None) != "opened":
-            return
-
         number = self.payload.get('issue', {}).get('number', None)
         subject = self.payload.get('issue', {}).get('title', None)
         github_url = self.payload.get('issue', {}).get('html_url', None)
@@ -141,6 +137,20 @@ class IssuesEventHook(BaseEventHook):
         if not all([subject, github_url, project_url]):
             raise ActionSyntaxException(_("Invalid issue information"))
 
+        if self.payload.get('action', None) == "opened":
+            _process_opened(self, number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
+        if self.payload.get('action', None) == "edited":
+            _process_edited(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
+
+
+    def _process_edited(number, subject, github_url, github_user_id, github_user_name, github_user_url, project_url, description):
+        issues = Issue.objects.filter(external_reference=["github", github_url])
+
+        for item in list(issues):
+            return
+
+
+    def _process_opened(self, number, subject, github_url, github_user_id, github_user_name, github_user_url, project_url, description):
         issue = Issue.objects.create(
             project=self.project,
             subject=subject,
