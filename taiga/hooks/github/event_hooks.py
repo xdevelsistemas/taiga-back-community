@@ -138,7 +138,7 @@ class IssuesEventHook(BaseEventHook):
             raise ActionSyntaxException(_("Invalid issue information"))
 
         if self.payload.get('action', None) == "opened":
-            self._process_opened(self, number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
+            self._process_opened(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
         if self.payload.get('action', None) == "edited":
             self._process_edited(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
 
