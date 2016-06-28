@@ -138,15 +138,16 @@ class IssuesEventHook(BaseEventHook):
             raise ActionSyntaxException(_("Invalid issue information"))
 
         if self.payload.get('action', None) == "opened":
-            _process_opened(self, number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
+            self._process_opened(self, number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
         if self.payload.get('action', None) == "edited":
-            _process_edited(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
+            self._process_edited(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
 
 
-    def _process_edited(number, subject, github_url, github_user_id, github_user_name, github_user_url, project_url, description):
+    def _process_edited(self, number, subject, github_url, github_user_id, github_user_name, github_user_url, project_url, description):
         issues = Issue.objects.filter(external_reference=["github", github_url])
 
         for item in list(issues):
+
             return
 
 
@@ -169,7 +170,7 @@ class IssuesEventHook(BaseEventHook):
                         "\"See @{github_user_name}'s GitHub profile\") "
                         "from GitHub.\nOrigin GitHub issue: [gh#{number} - {subject}]({github_url} "
                         "\"Go to 'gh#{number} - {subject}'\"):\n\n"
-                        "{description}. CHANGED!").format(github_user_name=github_user_name,
+                        "{description}").format(github_user_name=github_user_name,
                                                 github_user_url=github_user_url,
                                                 number=number,
                                                 subject=subject,
@@ -212,7 +213,7 @@ class IssueCommentEventHook(BaseEventHook):
                             "\"See @{github_user_name}'s GitHub profile\") "
                             "from GitHub.\nOrigin GitHub issue: [gh#{number} - {subject}]({github_url} "
                             "\"Go to 'gh#{number} - {subject}'\")\n\n"
-                            "{message}. CHANGED!").format(github_user_name=github_user_name,
+                            "{message}").format(github_user_name=github_user_name,
                                                 github_user_url=github_user_url,
                                                 number=number,
                                                 subject=subject,
