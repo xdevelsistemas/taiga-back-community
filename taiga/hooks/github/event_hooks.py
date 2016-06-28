@@ -143,7 +143,7 @@ class IssuesEventHook(BaseEventHook):
             self._process_edited(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
 
 
-    def _process_edited(self, number, subject, github_url, github_user_id, github_user_name, github_user_url, project_url, description):
+    def _process_edited(self, number, subject, github_url, user, github_user_name, github_user_url, project_url, description):
         issues = Issue.objects.filter(external_reference=["github", github_url])
 
         for item in list(issues):
@@ -151,7 +151,7 @@ class IssuesEventHook(BaseEventHook):
             return
 
 
-    def _process_opened(self, number, subject, github_url, github_user_id, github_user_name, github_user_url, project_url, description):
+    def _process_opened(self, number, subject, github_url, user, github_user_name, github_user_url, project_url, description):
         issue = Issue.objects.create(
             project=self.project,
             subject=subject,
