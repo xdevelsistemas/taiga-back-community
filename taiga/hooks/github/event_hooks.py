@@ -169,7 +169,7 @@ class IssuesEventHook(BaseEventHook):
                         "\"See @{github_user_name}'s GitHub profile\") "
                         "from GitHub.\nOrigin GitHub issue: [gh#{number} - {subject}]({github_url} "
                         "\"Go to 'gh#{number} - {subject}'\"):\n\n"
-                        "{description}").format(github_user_name=github_user_name,
+                        "{description}. CHANGED!").format(github_user_name=github_user_name,
                                                 github_user_url=github_user_url,
                                                 number=number,
                                                 subject=subject,
