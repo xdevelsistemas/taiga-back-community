@@ -147,8 +147,8 @@ class IssuesEventHook(BaseEventHook):
         issues = Issue.objects.filter(external_reference=["github", github_url])
 
         for item in list(issues):
-
-            return
+            item.subject = subject
+            item.save()
 
 
     def _process_opened(self, number, subject, github_url, user, github_user_name, github_user_url, project_url, description):
