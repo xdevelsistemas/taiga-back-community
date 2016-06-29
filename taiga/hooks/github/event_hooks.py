@@ -147,7 +147,7 @@ class IssuesEventHook(BaseEventHook):
             self._process_status_changed(github_url, state)
         elif self.payload.get('action', None) == "opened":
             self._process_opened(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
-        else
+        else:
             raise ActionSyntaxException(_("Invalid issue information"))            
 
 
