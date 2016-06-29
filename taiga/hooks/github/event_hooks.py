@@ -141,18 +141,17 @@ class IssuesEventHook(BaseEventHook):
             raise ActionSyntaxException(_("Invalid issue information"))
 
         if self.payload.get('action', None) == "edited":
-            self._process_edited(subject, github_url, description)
+            self._process_edited(subject, github_url, user, description)
         elif self.payload.get('action', None) == "closed":
-            self._process_status_changed(github_url, state)
+            self._process_status_changed(github_url, user, state)
         elif self.payload.get('action', None) == "reopened":
-            self._process_status_changed(github_url, state)
+            self._process_status_changed(github_url, user, state)
         elif self.payload.get('action', None) == "opened":
             self._process_opened(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
         else:
             raise ActionSyntaxException(_("Invalid issue information"))            
 
-
-    def _process_edited(self, subject, github_url, description):
+    def _process_edited(self, subject, github_url, user, description):
         issues = Issue.objects.filter(external_reference=["github", github_url])
 
         for item in list(issues):
@@ -160,14 +159,22 @@ class IssuesEventHook(BaseEventHook):
             item.description = description
             item.save()
 
+            snapshot = take_snapshot(item,
+                                    comment="Status changed from GitHub.",
+                                    user=user)
+            send_notifications(element, history=snapshot)
 
-    def _process_status_changed(self, github_url, status):
+    def _process_status_changed(self, github_url, user, status):
         issues = Issue.objects.filter(external_reference=["github", github_url])
 
         for item in list(issues):
             item.status = IssueStatus.objects.get(project=self.project, slug=status)
             item.save()
-            
+
+            snapshot = take_snapshot(item,
+                                    comment="Status changed from GitHub.",
+                                    user=user)
+            send_notifications(element, history=snapshot)
 
     def _process_opened(self, number, subject, github_url, user, github_user_name, github_user_url, project_url, description):
         issue = Issue.objects.create(
@@ -203,8 +210,10 @@ class IssuesEventHook(BaseEventHook):
 
 class IssueCommentEventHook(BaseEventHook):
     def process_event(self):
-        if self.payload.get('action', None) != "created" and self.payload.get('action', None) != "edited":
-                raise ActionSyntaxException(_("Invalid issue comment information"))
+        action = self.payload.get('action', None) 
+
+        if action != "created" and action != "edited" and action != "deleted" 
+            raise ActionSyntaxException(_("Invalid issue comment information"))
 
         number = self.payload.get('issue', {}).get('number', None)
         subject = self.payload.get('issue', {}).get('title', None)
@@ -241,16 +250,16 @@ class IssueCommentEventHook(BaseEventHook):
             comment = _("Comment From GitHub:\n\n{message}").format(message=comment_message)
 
         for item in list(issues):# + list(tasks) + list(uss):
-            if self.payload.get('action', None) == "created":
+            if action == "created":
                 self._process_created(item, comment, user)
-            elif self.payload.get('action', None) == "edited":
+            elif action == "edited":
                 self._process_edited(item, comment, comment_github_url)
-
+            elif action == "deleted":
+                self._process_deleted(item, comment_github_url)
 
     def _process_created(self, item, comment, user):
         snapshot = take_snapshot(item, comment=comment, user=user)
         send_notifications(item, history=snapshot)
-
 
     def _process_edited(self, item, comment, comment_github_url):
         histories = HistoryEntry.objects.filter(key="issues.issue:" + str(item.id), comment__contains=comment_github_url)
@@ -259,3 +268,9 @@ class IssueCommentEventHook(BaseEventHook):
             history.comment = comment
             history.comment_html = mdrender(item.project, comment)
             history.save()
+
+    def _process_deleted(self, item, comment_github_url):
+        histories = HistoryEntry.objects.filter(key="issues.issue:" + str(item.id), comment__contains=comment_github_url)
+        
+        for history in list(histories):
+            history.delete()
