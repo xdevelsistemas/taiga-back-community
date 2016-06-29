@@ -212,7 +212,7 @@ class IssueCommentEventHook(BaseEventHook):
     def process_event(self):
         action = self.payload.get('action', None) 
 
-        if action != "created" and action != "edited" and action != "deleted" 
+        if action != "created" and action != "edited" and action != "deleted":
             raise ActionSyntaxException(_("Invalid issue comment information"))
 
         number = self.payload.get('issue', {}).get('number', None)
