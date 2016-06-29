@@ -154,27 +154,27 @@ class IssuesEventHook(BaseEventHook):
     def _process_edited(self, subject, github_url, user, description):
         issues = Issue.objects.filter(external_reference=["github", github_url])
 
-        for item in list(issues):
-            item.subject = subject
-            item.description = description
-            item.save()
+        for issue in list(issues):
+            issue.subject = subject
+            issue.description = description
+            issue.save()
 
-            snapshot = take_snapshot(item,
+            snapshot = take_snapshot(issue,
                                     comment="Status changed from GitHub.",
                                     user=user)
-            send_notifications(element, history=snapshot)
+            send_notifications(issue, history=snapshot)
 
     def _process_status_changed(self, github_url, user, status):
         issues = Issue.objects.filter(external_reference=["github", github_url])
 
-        for item in list(issues):
-            item.status = IssueStatus.objects.get(project=self.project, slug=status)
-            item.save()
+        for issue in list(issues):
+            issue.status = IssueStatus.objects.get(project=self.project, slug=status)
+            issue.save()
 
-            snapshot = take_snapshot(item,
+            snapshot = take_snapshot(issue,
                                     comment="Status changed from GitHub.",
                                     user=user)
-            send_notifications(element, history=snapshot)
+            send_notifications(issue, history=snapshot)
 
     def _process_opened(self, number, subject, github_url, user, github_user_name, github_user_url, project_url, description):
         issue = Issue.objects.create(
@@ -232,8 +232,8 @@ class IssueCommentEventHook(BaseEventHook):
             raise ActionSyntaxException(_("Invalid issue comment information"))
 
         issues = Issue.objects.filter(external_reference=["github", github_url])
-        # tasks = Task.objects.filter(external_reference=["github", github_url])
-        # uss = UserStory.objects.filter(external_reference=["github", github_url])
+        tasks = Task.objects.filter(external_reference=["github", github_url])
+        uss = UserStory.objects.filter(external_reference=["github", github_url])
 
         if number and subject and github_user_name and github_user_url:
             comment = _("Comment by [@{github_user_name}]({github_user_url} "
