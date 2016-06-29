@@ -252,7 +252,7 @@ class IssueCommentEventHook(BaseEventHook):
 
 
     def _process_edited(self, item, comment, comment_github_url):
-        histories = HistoryEntry.objects.filter(key="issues.issue:" + item.id, comment__contains=comment_github_url)
+        histories = HistoryEntry.objects.filter(key="issues.issue:" + str(item.id), comment__contains=comment_github_url)
         
         for history in list(histories):
             history.comment = comment
