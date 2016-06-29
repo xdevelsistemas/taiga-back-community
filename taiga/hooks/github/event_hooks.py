@@ -160,7 +160,7 @@ class IssuesEventHook(BaseEventHook):
             issue.save()
 
             snapshot = take_snapshot(issue,
-                                    comment="Status changed from GitHub.",
+                                    comment="Edited from GitHub.",
                                     user=user)
             send_notifications(issue, history=snapshot)
 
