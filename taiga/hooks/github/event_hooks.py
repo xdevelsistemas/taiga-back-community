@@ -26,6 +26,7 @@ from taiga.projects.history.services import take_snapshot
 from taiga.projects.notifications.services import send_notifications
 from taiga.hooks.event_hooks import BaseEventHook
 from taiga.hooks.exceptions import ActionSyntaxException
+from taiga.mdrender.service import render as mdrender
 
 from .services import get_github_user
 
@@ -256,5 +257,5 @@ class IssueCommentEventHook(BaseEventHook):
         
         for history in list(histories):
             history.comment = comment
+            history.comment_html = mdrender(item.project, comment)
             history.save()
-                
