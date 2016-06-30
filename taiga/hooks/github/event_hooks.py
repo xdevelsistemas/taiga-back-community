@@ -1,7 +1,6 @@
-# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
+# Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.be>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
-# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -17,15 +16,17 @@
 
 from django.utils.translation import ugettext as _
 
-from taiga.projects.models import IssueStatus, TaskStatus, UserStoryStatus
+from taiga.projects.models import IssueStatus, IssueType, TaskStatus, UserStoryStatus
 
 from taiga.projects.issues.models import Issue
 from taiga.projects.tasks.models import Task
 from taiga.projects.userstories.models import UserStory
+from taiga.projects.history.models import HistoryEntry
 from taiga.projects.history.services import take_snapshot
 from taiga.projects.notifications.services import send_notifications
 from taiga.hooks.event_hooks import BaseEventHook
 from taiga.hooks.exceptions import ActionSyntaxException
+from taiga.mdrender.service import render as mdrender
 
 from .services import get_github_user
 
@@ -123,9 +124,6 @@ def replace_github_references(project_url, wiki_text):
 
 class IssuesEventHook(BaseEventHook):
     def process_event(self):
-        if self.payload.get('action', None) != "opened":
-            return
-
         number = self.payload.get('issue', {}).get('number', None)
         subject = self.payload.get('issue', {}).get('title', None)
         github_url = self.payload.get('issue', {}).get('html_url', None)
@@ -135,12 +133,70 @@ class IssuesEventHook(BaseEventHook):
         project_url = self.payload.get('repository', {}).get('html_url', None)
         description = self.payload.get('issue', {}).get('body', None)
         description = replace_github_references(project_url, description)
+        state = self.payload.get('issue', {}).get('state', None)
 
         user = get_github_user(github_user_id)
 
         if not all([subject, github_url, project_url]):
             raise ActionSyntaxException(_("Invalid issue information"))
 
+        action = self.payload.get('action', None)
+
+        if action == "labeled" or action == "unlabeled":
+            self._process_label_changed(user, github_url)
+        elif action == "edited":
+            self._process_edited(subject, github_url, user, description)
+        elif action == "closed" or action == "reopened":
+            self._process_status_changed(github_url, user, state)
+        elif action == "opened":
+            self._process_opened(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
+        else:
+            raise ActionSyntaxException(_("Invalid issue information"))            
+
+    def _process_label_changed(self, user, github_url):
+        issues = Issue.objects.filter(external_reference=["github", github_url])
+        
+        l = self.payload.get('issue', {}).get('labels', [])
+        labels = [x['name'] for x in l]
+
+        issueType = IssueType.objects.filter(project=self.project, name__in=labels).order_by('order').first()
+
+        for issue in list(issues):
+            issue.tags = labels 
+            issue.type = issueType
+            issue.save()
+
+            snapshot = take_snapshot(issue,
+                                    comment="Edited from GitHub.",
+                                    user=user)
+            send_notifications(issue, history=snapshot)
+
+    def _process_edited(self, subject, github_url, user, description):
+        issues = Issue.objects.filter(external_reference=["github", github_url])
+
+        for issue in list(issues):
+            issue.subject = subject
+            issue.description = description
+            issue.save()
+
+            snapshot = take_snapshot(issue,
+                                    comment="Edited from GitHub.",
+                                    user=user)
+            send_notifications(issue, history=snapshot)
+
+    def _process_status_changed(self, github_url, user, status):
+        issues = Issue.objects.filter(external_reference=["github", github_url])
+
+        for issue in list(issues):
+            issue.status = IssueStatus.objects.get(project=self.project, slug=status)
+            issue.save()
+
+            snapshot = take_snapshot(issue,
+                                    comment="Status changed from GitHub.",
+                                    user=user)
+            send_notifications(issue, history=snapshot)
+
+    def _process_opened(self, number, subject, github_url, user, github_user_name, github_user_url, project_url, description):
         issue = Issue.objects.create(
             project=self.project,
             subject=subject,
@@ -174,7 +230,9 @@ class IssuesEventHook(BaseEventHook):
 
 class IssueCommentEventHook(BaseEventHook):
     def process_event(self):
-        if self.payload.get('action', None) != "created":
+        action = self.payload.get('action', None) 
+
+        if action != "created" and action != "edited" and action != "deleted":
             raise ActionSyntaxException(_("Invalid issue comment information"))
 
         number = self.payload.get('issue', {}).get('number', None)
@@ -186,6 +244,7 @@ class IssueCommentEventHook(BaseEventHook):
         project_url = self.payload.get('repository', {}).get('html_url', None)
         comment_message = self.payload.get('comment', {}).get('body', None)
         comment_message = replace_github_references(project_url, comment_message)
+        comment_github_url = self.payload.get('comment', {}).get('html_url', None)
 
         user = get_github_user(github_user_id)
 
@@ -196,20 +255,42 @@ class IssueCommentEventHook(BaseEventHook):
         tasks = Task.objects.filter(external_reference=["github", github_url])
         uss = UserStory.objects.filter(external_reference=["github", github_url])
 
-        for item in list(issues) + list(tasks) + list(uss):
-            if number and subject and github_user_name and github_user_url:
-                comment = _("Comment by [@{github_user_name}]({github_user_url} "
-                            "\"See @{github_user_name}'s GitHub profile\") "
-                            "from GitHub.\nOrigin GitHub issue: [gh#{number} - {subject}]({github_url} "
-                            "\"Go to 'gh#{number} - {subject}'\")\n\n"
-                            "{message}").format(github_user_name=github_user_name,
-                                                github_user_url=github_user_url,
-                                                number=number,
-                                                subject=subject,
-                                                github_url=github_url,
-                                                message=comment_message)
-            else:
-                comment = _("Comment From GitHub:\n\n{message}").format(message=comment_message)
+        if number and subject and github_user_name and github_user_url:
+            comment = _("Comment by [@{github_user_name}]({github_user_url} "
+                        "\"See @{github_user_name}'s GitHub profile\") "
+                        "from GitHub.\nOrigin GitHub comment: [gh#{number} - {subject}]({github_url} "
+                        "\"Go to 'gh#{number} - {subject}'\")\n\n"
+                        "{message}").format(github_user_name=github_user_name,
+                                            github_user_url=github_user_url,
+                                            number=number,
+                                            subject=subject,
+                                            github_url=comment_github_url,
+                                            message=comment_message)
+        else:
+            comment = _("Comment From GitHub:\n\n{message}").format(message=comment_message)
 
-            snapshot = take_snapshot(item, comment=comment, user=user)
-            send_notifications(item, history=snapshot)
+        for item in list(issues) + list(tasks) + list(uss):
+            if action == "created":
+                self._process_created(item, comment, user)
+            elif action == "edited":
+                self._process_edited(item, comment, comment_github_url)
+            elif action == "deleted":
+                self._process_deleted(item, comment_github_url)
+
+    def _process_created(self, item, comment, user):
+        snapshot = take_snapshot(item, comment=comment, user=user)
+        send_notifications(item, history=snapshot)
+
+    def _process_edited(self, item, comment, comment_github_url):
+        histories = HistoryEntry.objects.filter(key="issues.issue:" + str(item.id), comment__contains=comment_github_url)
+        
+        for history in list(histories):
+            history.comment = comment
+            history.comment_html = mdrender(item.project, comment)
+            history.save()
+
+    def _process_deleted(self, item, comment_github_url):
+        histories = HistoryEntry.objects.filter(key="issues.issue:" + str(item.id), comment__contains=comment_github_url)
+        
+        for history in list(histories):
+            history.delete()
