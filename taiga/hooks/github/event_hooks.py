@@ -163,11 +163,11 @@ class IssuesEventHook(BaseEventHook):
         # (Testar) pesquisar os tipos dos issues pelo nome dos labels e trazer o primeiro ordenado pelo order crescente 
         issueType = IssueType.objects.filter(project=self.project, name__in=labels).order_by('order').first()
 
-        print '\nIssuetype:' + issueType.name
+        print ('\nIssuetype:' + issueType.name)
 
-        print str(labels)
+        print (str(labels))
 
-        print labels
+        print (labels)
 
         for issue in list(issues):
             issue.tags = labels # pesquisar como salvar tags (Testar) 
