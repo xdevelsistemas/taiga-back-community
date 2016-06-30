@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -22,8 +23,8 @@ from taiga.base.api.utils import encoders
 import json
 
 
-def dumps(data, ensure_ascii=True, encoder_class=encoders.JSONEncoder):
-    return json.dumps(data, cls=encoder_class, indent=None, ensure_ascii=ensure_ascii)
+def dumps(data, ensure_ascii=True, encoder_class=encoders.JSONEncoder, indent=None):
+    return json.dumps(data, cls=encoder_class, ensure_ascii=ensure_ascii, indent=indent)
 
 
 def loads(data):

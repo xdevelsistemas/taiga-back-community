@@ -1,4 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
+# Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
+# Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
+# Copyright (C) 2014-2016 Alejandro Alonso <alejandro.alonso@kaleidos.net>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
@@ -33,6 +37,7 @@ from functools import wraps
 from functools import lru_cache
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator, InvalidPage
 from django.apps import apps
@@ -331,7 +336,7 @@ def take_snapshot(obj:object, *, comment:str="", user=None, delete:bool=False):
             "is_hidden": is_hidden,
             "is_snapshot": need_real_snapshot,
         }
-        
+
         return entry_model.objects.create(**kwargs)
 
 
@@ -350,6 +355,16 @@ def get_history_queryset_by_model_instance(obj:object, types=(HistoryType.change
         qs = qs.filter(is_hidden=False)
 
     return qs.order_by("created_at")
+
+
+def prefetch_owners_in_history_queryset(qs):
+    user_ids = [u["pk"] for u in qs.values_list("user", flat=True)]
+    users = get_user_model().objects.filter(id__in=user_ids)
+    users_by_id = {u.id: u for u in users}
+    for history_entry in  qs:
+        history_entry.prefetch_owner(users_by_id.get(history_entry.user["pk"], None))
+
+    return qs
 
 
 # Freeze implementatitions

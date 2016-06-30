@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -23,7 +24,7 @@ SR = {
         "github_url": "https://github.com/taigaio",
     },
     "support": {
-        "url": "https://taiga.io/support",
+        "url": "https://tree.taiga.io/support",
         "email": "support@taiga.io",
         "mailing_list": "https://groups.google.com/forum/#!forum/taigaio",
     }

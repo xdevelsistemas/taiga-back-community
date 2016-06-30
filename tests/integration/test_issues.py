@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import uuid
 import csv
 
@@ -433,6 +434,6 @@ def test_custom_fields_csv_generation():
     data.seek(0)
     reader = csv.reader(data)
     row = next(reader)
-    assert row[21] == attr.name
+    assert row[23] == attr.name
     row = next(reader)
-    assert row[21] == "val1"
+    assert row[23] == "val1"

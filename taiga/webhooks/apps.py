@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -25,8 +26,6 @@ def connect_webhooks_signals():
     signals.post_save.connect(handlers.on_new_history_entry,
                               sender=apps.get_model("history", "HistoryEntry"),
                               dispatch_uid="webhooks")
-
-
 
 
 def disconnect_webhooks_signals():

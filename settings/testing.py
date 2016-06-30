@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -17,10 +18,8 @@
 
 from .development import *
 
-SKIP_SOUTH_TESTS = True
-SOUTH_TESTS_MIGRATE = False
-CELERY_ALWAYS_EAGER = True
 CELERY_ENABLED = False
+CELERY_ALWAYS_EAGER = True
 
 MEDIA_ROOT = "/tmp"
 

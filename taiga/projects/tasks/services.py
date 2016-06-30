@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -89,17 +90,17 @@ def snapshot_tasks_in_bulk(bulk_data, user):
         try:
             task = models.Task.objects.get(pk=task_data['task_id'])
             take_snapshot(task, user=user)
-        except models.UserStory.DoesNotExist:
+        except models.Task.DoesNotExist:
             pass
 
 
 def tasks_to_csv(project, queryset):
     csv_data = io.StringIO()
-    fieldnames = ["ref", "subject", "description", "user_story", "milestone", "owner",
-                  "owner_full_name", "assigned_to", "assigned_to_full_name",
-                  "status", "is_iocaine", "is_closed", "us_order",
-                  "taskboard_order", "attachments", "external_reference", "tags",
-                  "watchers", "voters"]
+    fieldnames = ["ref", "subject", "description", "user_story", "sprint", "sprint_estimated_start",
+                  "sprint_estimated_finish", "owner", "owner_full_name", "assigned_to",
+                  "assigned_to_full_name", "status", "is_iocaine", "is_closed", "us_order",
+                  "taskboard_order", "attachments", "external_reference", "tags", "watchers", "voters",
+                  "created_date", "modified_date", "finished_date"]
 
     custom_attrs = project.taskcustomattributes.all()
     for custom_attr in custom_attrs:
@@ -124,7 +125,9 @@ def tasks_to_csv(project, queryset):
             "subject": task.subject,
             "description": task.description,
             "user_story": task.user_story.ref if task.user_story else None,
-            "milestone": task.milestone.name if task.milestone else None,
+            "sprint": task.milestone.name if task.milestone else None,
+            "sprint_estimated_start": task.milestone.estimated_start if task.milestone else None,
+            "sprint_estimated_finish": task.milestone.estimated_finish if task.milestone else None,
             "owner": task.owner.username if task.owner else None,
             "owner_full_name": task.owner.get_full_name() if task.owner else None,
             "assigned_to": task.assigned_to.username if task.assigned_to else None,
@@ -139,6 +142,9 @@ def tasks_to_csv(project, queryset):
             "tags": ",".join(task.tags or []),
             "watchers": task.watchers,
             "voters": task.total_voters,
+            "created_date": task.created_date,
+            "modified_date": task.modified_date,
+            "finished_date": task.finished_date,            
         }
         for custom_attr in custom_attrs:
             value = task.custom_attributes_values.attributes_values.get(str(custom_attr.id), None)

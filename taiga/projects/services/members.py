@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -87,6 +88,9 @@ def get_max_memberships_for_project(project):
 
     :return: a number or null.
     """
+    if project.owner is None:
+        return None
+
     if project.is_private:
         return project.owner.max_memberships_private_projects
     return project.owner.max_memberships_public_projects
@@ -110,6 +114,9 @@ def check_if_project_can_have_more_memberships(project, total_new_memberships):
 
     :return: {bool, error_mesage} return a tuple (can add new members?, error message).
     """
+    if project.owner is None:
+        return False, _("Project without owner")
+        
     if project.is_private:
         total_memberships = project.memberships.count() + total_new_memberships
         max_memberships = project.owner.max_memberships_private_projects

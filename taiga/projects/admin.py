@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -16,13 +17,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.contrib import admin
+from django.core.urlresolvers import reverse
+from django.db import transaction
+from django.utils.html import format_html
+from django.utils.translation import ugettext_lazy as _
 
-from taiga.projects.milestones.admin import MilestoneInline
+from taiga.permissions import permissions
 from taiga.projects.notifications.admin import NotifyPolicyInline
 from taiga.projects.likes.admin import LikeInline
 from taiga.users.admin import RoleInline
 
 from . import models
+
 
 class MembershipAdmin(admin.ModelAdmin):
     list_display = ['project', 'role', 'user']
@@ -43,6 +49,7 @@ class MembershipAdmin(admin.ModelAdmin):
                                          project=self.obj.project)
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 class MembershipInline(admin.TabularInline):
     model = models.Membership
@@ -67,17 +74,72 @@ class MembershipInline(admin.TabularInline):
 
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ["id", "name", "slug", "is_private",
-                    "is_featured", "is_looking_for_people",
-                    "owner", "created_date"]
-
+                    "owner_url", "blocked_code", "is_featured"]
     list_display_links = ["id", "name", "slug"]
-    list_filter = ("is_private", "is_featured", "is_looking_for_people")
-    list_editable = ["is_featured"]
+    list_filter = ("is_private", "blocked_code", "is_featured")
+    list_editable = ["is_featured", "blocked_code"]
     search_fields = ["id", "name", "slug", "owner__username", "owner__email", "owner__full_name"]
-    inlines = [RoleInline, MembershipInline, MilestoneInline, NotifyPolicyInline, LikeInline]
+    inlines = [RoleInline,
+               MembershipInline,
+               NotifyPolicyInline,
+               LikeInline]
 
-    # NOTE: TextArrayField with a choices is broken in the admin panel.
-    exclude = ("anon_permissions", "public_permissions")
+    fieldsets = (
+        (None, {
+            "fields": ("name",
+                       "slug",
+                       "is_featured",
+                       "description",
+                       "tags",
+                       "logo",
+                       ("created_date", "modified_date"))
+        }),
+        (_("Privacity"), {
+            "fields": (("owner", "blocked_code"),
+                       "is_private",
+                       ("anon_permissions", "public_permissions"),
+                       "transfer_token")
+        }),
+        (_("Extra info"), {
+            "classes": ("collapse",),
+            "fields": ("creation_template",
+                       ("is_looking_for_people", "looking_for_people_note"),
+                       "tags_colors"),
+        }),
+        (_("Modules"), {
+            "classes": ("collapse",),
+            "fields": (("is_backlog_activated", "total_milestones", "total_story_points"),
+                       "is_kanban_activated",
+                       "is_issues_activated",
+                       "is_wiki_activated",
+                       ("videoconferences", "videoconferences_extra_data")),
+        }),
+        (_("Default values"), {
+            "classes": ("collapse",),
+            "fields": (("default_points", "default_us_status"),
+                       "default_task_status",
+                       ("default_issue_status", "default_priority", "default_severity", "default_issue_type")),
+        }),
+        (_("Activity"), {
+            "classes": ("collapse",),
+            "fields": (("total_activity", "total_activity_last_week",
+                        "total_activity_last_month", "total_activity_last_year"),),
+        }),
+        (_("Fans"), {
+            "classes": ("collapse",),
+            "fields": (("total_fans", "total_fans_last_week",
+                        "total_fans_last_month", "total_fans_last_year"),),
+        }),
+    )
+
+    def owner_url(self, obj):
+        if obj.owner:
+            url = reverse('admin:{0}_{1}_change'.format(obj.owner._meta.app_label,
+                                                        obj.owner._meta.model_name),
+                          args=(obj.owner.pk,))
+            return format_html("<a href='{url}' title='{user}'>{user}</a>", url=url, user=obj.owner)
+        return ""
+    owner_url.short_description = _('owner')
 
     def get_object(self, *args, **kwargs):
         self.obj = super().get_object(*args, **kwargs)
@@ -111,8 +173,45 @@ class ProjectAdmin(admin.ModelAdmin):
         obj.delete_related_content()
         super().delete_model(request, obj)
 
-# User Stories common admins
+    ## Actions
+    actions = [
+        "make_public",
+        "make_private"
+    ]
+    @transaction.atomic
+    def make_public(self, request, queryset):
+        total_updates = 0
 
+        for project in queryset.exclude(is_private=False):
+            project.is_private = False
+
+            anon_permissions = list(map(lambda perm: perm[0], permissions.ANON_PERMISSIONS))
+            project.anon_permissions = list(set((project.anon_permissions or []) + anon_permissions))
+            project.public_permissions = list(set((project.public_permissions or []) + anon_permissions))
+
+            project.save()
+            total_updates += 1
+
+        self.message_user(request, _("{count} successfully made public.").format(count=total_updates))
+    make_public.short_description = _("Make public")
+
+    @transaction.atomic
+    def make_private(self, request, queryset):
+        total_updates = 0
+
+        for project in queryset.exclude(is_private=True):
+            project.is_private = True
+            project.anon_permissions = []
+            project.public_permissions = []
+
+            project.save()
+            total_updates += 1
+
+        self.message_user(request, _("{count} successfully made private.").format(count=total_updates))
+    make_private.short_description = _("Make private")
+
+
+# User Stories common admins
 class PointsAdmin(admin.ModelAdmin):
     list_display = ["project", "order", "name", "value"]
     list_display_links = ["name"]

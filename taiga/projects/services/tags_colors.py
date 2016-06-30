@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -54,7 +55,7 @@ def update_project_tags_colors_handler(instance):
             new_color = _get_new_color(tag, settings.TAGS_PREDEFINED_COLORS,
                                        exclude=used_colors)
             instance.project.tags_colors.append([tag, new_color])
-        
+
     remove_unused_tags(instance.project)
 
     if not isinstance(instance, Project):

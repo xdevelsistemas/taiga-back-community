@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -16,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.apps import apps
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from django.db.models import Q
@@ -78,14 +80,56 @@ def _add_to_objects_timeline(objects, instance:object, event_type:str, created_d
         _add_to_object_timeline(obj, instance, event_type, created_datetime, namespace, extra_data)
 
 
-@app.task
-def push_to_timeline(objects, instance:object, event_type:str, created_datetime:object, namespace:str="default", extra_data:dict={}):
+def _push_to_timeline(objects, instance:object, event_type:str, created_datetime:object, namespace:str="default", extra_data:dict={}):
     if isinstance(objects, Model):
         _add_to_object_timeline(objects, instance, event_type, created_datetime, namespace, extra_data)
     elif isinstance(objects, QuerySet) or isinstance(objects, list):
         _add_to_objects_timeline(objects, instance, event_type, created_datetime, namespace, extra_data)
     else:
         raise Exception("Invalid objects parameter")
+
+
+@app.task
+def push_to_timelines(project_id, user_id, obj_app_label, obj_model_name, obj_id, event_type, created_datetime, extra_data={}):
+    ObjModel = apps.get_model(obj_app_label, obj_model_name)
+    try:
+        obj = ObjModel.objects.get(id=obj_id)
+    except ObjModel.DoesNotExist:
+        return
+
+    try:
+        user = get_user_model().objects.get(id=user_id)
+    except get_user_model().DoesNotExist:
+        return
+
+    if project_id is not None:
+        # Actions related with a project
+
+        projectModel = apps.get_model("projects", "Project")
+        try:
+            project = projectModel.objects.get(id=project_id)
+        except projectModel.DoesNotExist:
+            return
+
+        ## Project timeline
+        _push_to_timeline(project, obj, event_type, created_datetime,
+            namespace=build_project_namespace(project),
+            extra_data=extra_data)
+
+        project.refresh_totals()
+
+        if hasattr(obj, "get_related_people"):
+            related_people = obj.get_related_people()
+
+            _push_to_timeline(related_people, obj, event_type, created_datetime,
+                namespace=build_user_namespace(user),
+                extra_data=extra_data)
+    else:
+        # Actions not related with a project
+        ## - Me
+        _push_to_timeline(user, obj, event_type, created_datetime,
+            namespace=build_user_namespace(user),
+            extra_data=extra_data)
 
 
 def get_timeline(obj, namespace=None):
@@ -103,6 +147,10 @@ def get_timeline(obj, namespace=None):
 
 
 def filter_timeline_for_user(timeline, user):
+    # Superusers can see everything
+    if user.is_superuser:
+        return timeline
+
     # Filtering entities from public projects or entities without project
     tl_filter = Q(project__is_private=False) | Q(project=None)
 
@@ -131,9 +179,13 @@ def filter_timeline_for_user(timeline, user):
     # Filtering private projects where user is member
     if not user.is_anonymous():
         for membership in user.cached_memberships:
-            data_content_types = list(filter(None, [content_types.get(a, None) for a in membership.role.permissions]))
-            data_content_types.append(membership_content_type)
-            tl_filter |= Q(project=membership.project, data_content_type__in=data_content_types)
+            # Admin roles can see everything in a project
+            if membership.is_admin:
+                tl_filter |= Q(project=membership.project)
+            else:
+                data_content_types = list(filter(None, [content_types.get(a, None) for a in membership.role.permissions]))
+                data_content_types.append(membership_content_type)
+                tl_filter |= Q(project=membership.project, data_content_type__in=data_content_types)
 
     timeline = timeline.filter(tl_filter)
     return timeline

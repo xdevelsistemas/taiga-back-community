@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import copy
 import uuid
 import csv
@@ -179,33 +180,42 @@ def test_update_userstory_points(client):
     f.PointsFactory.create(project=project, value=1)
     points3 = f.PointsFactory.create(project=project, value=2)
 
-    us = f.UserStoryFactory.create(project=project, owner=user1, status__project=project, milestone__project=project)
+    us = f.UserStoryFactory.create(project=project,owner=user1, status__project=project,
+                                   milestone__project=project)
     usdata = UserStorySerializer(us).data
 
     url = reverse("userstories-detail", args=[us.pk])
 
     client.login(user1)
 
-    # Api should ignore invalid values
+    # invalid role
     data = {}
     data["version"] = usdata["version"]
     data["points"] = copy.copy(usdata["points"])
-    data["points"].update({'2000': points3.pk})
+    data["points"].update({"222222": points3.pk})
 
     response = client.json.patch(url, json.dumps(data))
-    assert response.status_code == 200, str(response.content)
-    assert response.data["points"] == usdata['points']
+    assert response.status_code == 400
+
+    # invalid point
+    data = {}
+    data["version"] = usdata["version"]
+    data["points"] = copy.copy(usdata["points"])
+    data["points"].update({str(role1.pk): "999999"})
+
+    response = client.json.patch(url, json.dumps(data))
+    assert response.status_code == 400
 
     # Api should save successful
     data = {}
-    data["version"] = usdata["version"] + 1
+    data["version"] = usdata["version"]
     data["points"] = copy.copy(usdata["points"])
     data["points"].update({str(role1.pk): points3.pk})
 
     response = client.json.patch(url, json.dumps(data))
     us = models.UserStory.objects.get(pk=us.pk)
     usdatanew = UserStorySerializer(us).data
-    assert response.status_code == 200
+    assert response.status_code == 200, str(response.content)
     assert response.data["points"] == usdatanew['points']
     assert response.data["points"] != usdata['points']
 
@@ -469,9 +479,9 @@ def test_custom_fields_csv_generation():
     data.seek(0)
     reader = csv.reader(data)
     row = next(reader)
-    assert row[26] == attr.name
+    assert row[28] == attr.name
     row = next(reader)
-    assert row[26] == "val1"
+    assert row[28] == "val1"
 
 
 def test_update_userstory_respecting_watchers(client):

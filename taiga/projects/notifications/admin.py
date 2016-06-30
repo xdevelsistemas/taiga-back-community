@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -26,6 +27,7 @@ class WatchedInline(GenericTabularInline):
     model = models.Watched
     extra = 0
     raw_id_fields = ["project", "user"]
+
 
 class NotifyPolicyInline(TabularInline):
     model = models.NotifyPolicy

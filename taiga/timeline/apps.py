@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -31,9 +32,9 @@ class TimelineAppConfig(AppConfig):
         signals.post_save.connect(handlers.on_new_history_entry,
                                   sender=apps.get_model("history", "HistoryEntry"),
                                   dispatch_uid="timeline")
-        signals.pre_save.connect(handlers.create_membership_push_to_timeline,
+        signals.post_save.connect(handlers.create_membership_push_to_timeline,
                                                  sender=apps.get_model("projects", "Membership"))
-        signals.post_delete.connect(handlers.delete_membership_push_to_timeline,
+        signals.pre_delete.connect(handlers.delete_membership_push_to_timeline,
                                                 sender=apps.get_model("projects", "Membership"))
         signals.post_save.connect(handlers.create_user_push_to_timeline,
                                                  sender=get_user_model())

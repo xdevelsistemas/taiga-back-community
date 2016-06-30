@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -18,34 +19,39 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import signals
-from optparse import make_option
 
 from taiga.base.utils import json
+from taiga.export_import import services
+from taiga.export_import import exceptions as err
 from taiga.projects.models import Project
-from taiga.export_import.renderers import ExportRenderer
-from taiga.export_import.dump_service import dict_to_project, TaigaImportError
-from taiga.export_import.service import get_errors
 from taiga.users.models import User
 
 
 class Command(BaseCommand):
-    args = '<dump_file> <owner-email>'
-    help = 'Export a project to json'
-    renderer_context = {"indent": 4}
-    renderer = ExportRenderer()
-    option_list = BaseCommand.option_list + (
-        make_option('--overwrite',
-                    action='store_true',
-                    dest='overwrite',
-                    default=False,
-                    help='Delete project if exists'),
-        )
+    help = 'Import a project from a json file'
+
+    def add_arguments(self, parser):
+        parser.add_argument("dump_file",
+                            help="The path to a dump file (.json).")
+
+        parser.add_argument("owner_email",
+                            help="The email of the new project owner.")
+
+        parser.add_argument("-o", '--overwrite',
+                            action='store_true',
+                            dest='overwrite',
+                            default=False,
+                            help='Overwrite the project if exists')
 
     def handle(self, *args, **options):
-        data = json.loads(open(args[0], 'r').read())
+        dump_file_path = options["dump_file"]
+        owner_email = options["owner_email"]
+        overwrite = options["overwrite"]
+
+        data = json.loads(open(dump_file_path, 'r').read())
         try:
             with transaction.atomic():
-                if options["overwrite"]:
+                if overwrite:
                     receivers_back = signals.post_delete.receivers
                     signals.post_delete.receivers = []
                     try:
@@ -60,9 +66,13 @@ class Command(BaseCommand):
                         pass
                     signals.post_delete.receivers = receivers_back
 
-                user = User.objects.get(email=args[1])
-                dict_to_project(data, user)
-        except TaigaImportError as e:
+                user = User.objects.get(email=owner_email)
+                services.store_project_from_dict(data, user)
+        except err.TaigaImportError as e:
+            if e.project:
+                e.project.delete_related_content()
+                e.project.delete()
+
             print("ERROR:", end=" ")
             print(e.message)
-            print(get_errors())
+            print(json.dumps(e.errors, indent=4))

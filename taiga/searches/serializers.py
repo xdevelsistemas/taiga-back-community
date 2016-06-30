@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -41,7 +42,8 @@ class TaskSearchResultsSerializer(TaskSerializer):
 class UserStorySearchResultsSerializer(UserStorySerializer):
     class Meta:
         model = UserStory
-        fields = ('id', 'ref', 'subject', 'status', 'total_points')
+        fields = ('id', 'ref', 'subject', 'status', 'total_points',
+                  'milestone_name', 'milestone_slug')
 
 
 class WikiPageSearchResultsSerializer(WikiPageSerializer):

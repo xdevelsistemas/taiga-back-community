@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -17,47 +18,26 @@
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from django.utils.translation import ugettext as _
 
 from taiga.projects.history import services as history_services
 from taiga.projects.history.choices import HistoryType
-from taiga.timeline.service import (push_to_timeline,
+from taiga.timeline.service import (push_to_timelines,
                                     build_user_namespace,
                                     build_project_namespace,
                                     extract_user_info)
 
 
-def _push_to_timeline(*args, **kwargs):
-    if settings.CELERY_ENABLED:
-        push_to_timeline.delay(*args, **kwargs)
-    else:
-        push_to_timeline(*args, **kwargs)
-
-
 def _push_to_timelines(project, user, obj, event_type, created_datetime, extra_data={}):
-    if project is not None:
-        # Actions related with a project
+    project_id = None if project is None else project.id
 
-        ## Project timeline
-        _push_to_timeline(project, obj, event_type, created_datetime,
-            namespace=build_project_namespace(project),
-            extra_data=extra_data)
-
-        project.refresh_totals()
-
-        if hasattr(obj, "get_related_people"):
-            related_people = obj.get_related_people()
-
-            _push_to_timeline(related_people, obj, event_type, created_datetime,
-                namespace=build_user_namespace(user),
-                extra_data=extra_data)
+    ct = ContentType.objects.get_for_model(obj)
+    if settings.CELERY_ENABLED:
+        push_to_timelines.delay(project_id, user.id, ct.app_label, ct.model, obj.id, event_type, created_datetime, extra_data=extra_data)
     else:
-        # Actions not related with a project
-        ## - Me
-        _push_to_timeline(user, obj, event_type, created_datetime,
-            namespace=build_user_namespace(user),
-            extra_data=extra_data)
+        push_to_timelines(project_id, user.id, ct.app_label, ct.model, obj.id, event_type, created_datetime, extra_data=extra_data)
 
 
 def _clean_description_fields(values_diff):
@@ -110,7 +90,7 @@ def on_new_history_entry(sender, instance, created, **kwargs):
     _push_to_timelines(project, user, obj, event_type, created_datetime, extra_data=extra_data)
 
 
-def create_membership_push_to_timeline(sender, instance, **kwargs):
+def create_membership_push_to_timeline(sender, instance, created, **kwargs):
     """
     Creating new membership with associated user. If the user is the project owner we don't
     do anything because that info will be shown in created project timeline entry
@@ -120,28 +100,9 @@ def create_membership_push_to_timeline(sender, instance, **kwargs):
     """
 
     # We shown in created project timeline entry
-    if not instance.pk and instance.user and instance.user != instance.project.owner:
+    if created and instance.user and instance.user != instance.project.owner:
         created_datetime = instance.created_at
         _push_to_timelines(instance.project, instance.user, instance, "create", created_datetime)
-
-    # Updating existing membership
-    elif instance.pk:
-        try:
-            prev_instance = sender.objects.get(pk=instance.pk)
-            if instance.user != prev_instance.user:
-                created_datetime = timezone.now()
-                # The new member
-                _push_to_timelines(instance.project, instance.user, instance, "create", created_datetime)
-                # If we are updating the old user is removed from project
-                if prev_instance.user:
-                    _push_to_timelines(instance.project,
-                                       prev_instance.user,
-                                       prev_instance,
-                                       "delete",
-                                       created_datetime)
-        except sender.DoesNotExist:
-            # This happens with some tests, when a membership is created with a concrete id
-            pass
 
 
 def delete_membership_push_to_timeline(sender, instance, **kwargs):

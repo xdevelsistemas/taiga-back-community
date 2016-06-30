@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2016 Andrey Antukh <niwi@niwi.nz>
 # Copyright (C) 2014-2016 Jesús Espino <jespinog@gmail.com>
 # Copyright (C) 2014-2016 David Barragán <bameda@dbarragan.com>
@@ -128,6 +129,40 @@ def test_filter_timeline_private_project_member_permissions():
     timeline = Timeline.objects.exclude(event_type="users.user.create")
     timeline = service.filter_timeline_for_user(timeline, user2)
     assert timeline.count() == 3
+
+
+def test_filter_timeline_private_project_member_admin():
+    Timeline.objects.all().delete()
+    user1 = factories.UserFactory()
+    user2 = factories.UserFactory()
+    project = factories.ProjectFactory.create(is_private=True)
+    membership = factories.MembershipFactory.create(user=user2, project=project, is_admin=True)
+    task1= factories.TaskFactory()
+    task2= factories.TaskFactory.create(project=project)
+
+    service.register_timeline_implementation("tasks.task", "test", lambda x, extra_data=None: str(id(x)))
+    service._add_to_object_timeline(user1, task1, "test", task1.created_date)
+    service._add_to_object_timeline(user1, task2, "test", task2.created_date)
+    timeline = Timeline.objects.exclude(event_type="users.user.create")
+    timeline = service.filter_timeline_for_user(timeline, user2)
+    assert timeline.count() == 3
+
+
+def test_filter_timeline_private_project_member_superuser():
+    Timeline.objects.all().delete()
+    user1 = factories.UserFactory()
+    user2 = factories.UserFactory(is_superuser=True)
+    project = factories.ProjectFactory.create(is_private=True)
+
+    task1= factories.TaskFactory()
+    task2= factories.TaskFactory.create(project=project)
+
+    service.register_timeline_implementation("tasks.task", "test", lambda x, extra_data=None: str(id(x)))
+    service._add_to_object_timeline(user1, task1, "test", task1.created_date)
+    service._add_to_object_timeline(user1, task2, "test", task2.created_date)
+    timeline = Timeline.objects.exclude(event_type="users.user.create")
+    timeline = service.filter_timeline_for_user(timeline, user2)
+    assert timeline.count() == 2
 
 
 def test_create_project_timeline():
@@ -316,29 +351,6 @@ def test_update_wiki_page_timeline():
     assert user_watcher_timeline[0].data["values_diff"]["slug"][1] == "test wiki page timeline updated"
 
 
-def test_update_membership_timeline():
-    user_1 = factories.UserFactory.create()
-    user_2 = factories.UserFactory.create()
-    membership = factories.MembershipFactory.create(user=user_1)
-    membership.user = user_2
-    membership.save()
-    project_timeline = service.get_project_timeline(membership.project)
-    user_1_timeline = service.get_user_timeline(user_1)
-    user_2_timeline = service.get_user_timeline(user_2)
-    assert project_timeline[0].event_type == "projects.membership.delete"
-    assert project_timeline[0].data["project"]["id"] == membership.project.id
-    assert project_timeline[0].data["user"]["id"] == user_1.id
-    assert project_timeline[1].event_type == "projects.membership.create"
-    assert project_timeline[1].data["project"]["id"] == membership.project.id
-    assert project_timeline[1].data["user"]["id"] == user_2.id
-    assert user_1_timeline[0].event_type == "projects.membership.delete"
-    assert user_1_timeline[0].data["project"]["id"] == membership.project.id
-    assert user_1_timeline[0].data["user"]["id"] == user_1.id
-    assert user_2_timeline[0].event_type == "projects.membership.create"
-    assert user_2_timeline[0].data["project"]["id"] == membership.project.id
-    assert user_2_timeline[0].data["user"]["id"] == user_2.id
-
-
 def test_delete_project_timeline():
     project = factories.ProjectFactory.create(name="test project timeline")
     user_watcher= factories.UserFactory()
@@ -499,9 +511,11 @@ def test_timeline_error_use_member_ids_instead_of_memberships_ids():
     history_services.take_snapshot(user_story, user=member_user)
 
     user_timeline = service.get_profile_timeline(member_user)
-    assert len(user_timeline) == 2
+
+    assert len(user_timeline) == 3
     assert user_timeline[0].event_type == "userstories.userstory.create"
-    assert user_timeline[1].event_type ==  "users.user.create"
+    assert user_timeline[1].event_type == "projects.membership.create"
+    assert user_timeline[2].event_type == "users.user.create"
 
     external_user_timeline = service.get_profile_timeline(external_user)
     assert len(external_user_timeline) == 1
