@@ -269,7 +269,7 @@ class IssueCommentEventHook(BaseEventHook):
         else:
             comment = _("Comment From GitHub:\n\n{message}").format(message=comment_message)
 
-        for item in list(issues):# + list(tasks) + list(uss):
+        for item in list(issues) + list(tasks) + list(uss):
             if action == "created":
                 self._process_created(item, comment, user)
             elif action == "edited":
