@@ -16,7 +16,7 @@
 
 from django.utils.translation import ugettext as _
 
-from taiga.projects.models import IssueStatus, TaskStatus, UserStoryStatus
+from taiga.projects.models import IssueStatus, IssueType, TaskStatus, UserStoryStatus
 
 from taiga.projects.issues.models import Issue
 from taiga.projects.tasks.models import Task
@@ -140,16 +140,38 @@ class IssuesEventHook(BaseEventHook):
         if not all([subject, github_url, project_url]):
             raise ActionSyntaxException(_("Invalid issue information"))
 
-        if self.payload.get('action', None) == "edited":
+        action = self.payload.get('action', None)
+
+        if action == "edited":
             self._process_edited(subject, github_url, user, description)
-        elif self.payload.get('action', None) == "closed":
+        elif action == "closed":
             self._process_status_changed(github_url, user, state)
-        elif self.payload.get('action', None) == "reopened":
+        elif action == "reopened":
             self._process_status_changed(github_url, user, state)
-        elif self.payload.get('action', None) == "opened":
+        elif action == "opened":
             self._process_opened(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
+        elif action == "labeled":
+            self._process_labeled(user, github_url)
         else:
             raise ActionSyntaxException(_("Invalid issue information"))            
+
+    def _process_labeled(self, user, github_url):
+        issues = Issue.objects.filter(external_reference=["github", github_url])
+        
+        labels = [x.name for x in list(self.payload.get('labels', [])]
+
+        # (Testar) pesquisar os tipos dos issues pelo nome dos labels e trazer o primeiro ordenado pelo order crescente 
+        issueType = IssueType.objects.filter(project=self.project, name__in=labels).order_by('order').first()
+
+        for issue in list(issues):
+            issue.tags = labels # pesquisar como salvar tags (Testar) 
+            issue.type = issueType
+            issue.save()
+
+            snapshot = take_snapshot(issue,
+                                    comment="Edited from GitHub.",
+                                    user=user)
+            send_notifications(issue, history=snapshot)
 
     def _process_edited(self, subject, github_url, user, description):
         issues = Issue.objects.filter(external_reference=["github", github_url])
