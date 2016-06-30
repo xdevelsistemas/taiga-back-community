@@ -157,9 +157,8 @@ class IssuesEventHook(BaseEventHook):
 
     def _process_labeled(self, user, github_url):
         issues = Issue.objects.filter(external_reference=["github", github_url])
-        l = list(self.payload['labels'])
-
-        raise ActionSyntaxException(str(l))
+        
+        raise ActionSyntaxException(str(self.payload))
 
         labels = [x['name'] for x in l]
 
