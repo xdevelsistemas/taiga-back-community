@@ -157,8 +157,11 @@ class IssuesEventHook(BaseEventHook):
 
     def _process_labeled(self, user, github_url):
         issues = Issue.objects.filter(external_reference=["github", github_url])
-        
-        labels = [x['name'] for x in list(self.payload.get('labels', []))]
+        l = list(self.payload.get('labels', []))
+
+        raise ActionSyntaxException(str(l))
+
+        labels = [x['name'] for x in l]
 
         # (Testar) pesquisar os tipos dos issues pelo nome dos labels e trazer o primeiro ordenado pelo order crescente 
         issueType = IssueType.objects.filter(project=self.project, name__in=labels).order_by('order').first()
