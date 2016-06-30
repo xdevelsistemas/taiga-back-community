@@ -165,10 +165,8 @@ class IssuesEventHook(BaseEventHook):
 
         # print ('\nIssuetype:' + issueType.name)
 
-        print (str(labels))
-
-        print (labels)
-
+        raise ActionSyntaxException(str(labels))            
+        
         print (str(issueType))
 
         print (issueType)
