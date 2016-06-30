@@ -142,39 +142,27 @@ class IssuesEventHook(BaseEventHook):
 
         action = self.payload.get('action', None)
 
-        if action == "edited":
+        if action == "labeled" or action == "unlabeled":
+            self._process_label_changed(user, github_url)
+        elif action == "edited":
             self._process_edited(subject, github_url, user, description)
-        elif action == "closed":
-            self._process_status_changed(github_url, user, state)
-        elif action == "reopened":
+        elif action == "closed" or action == "reopened":
             self._process_status_changed(github_url, user, state)
         elif action == "opened":
             self._process_opened(number, subject, github_url, user, github_user_name, github_user_url, project_url, description)
-        elif action == "labeled":
-            self._process_labeled(user, github_url)
         else:
             raise ActionSyntaxException(_("Invalid issue information"))            
 
-    def _process_labeled(self, user, github_url):
+    def _process_label_changed(self, user, github_url):
         issues = Issue.objects.filter(external_reference=["github", github_url])
         
         l = self.payload.get('issue', {}).get('labels', [])
-
         labels = [x['name'] for x in l]
 
-        # (Testar) pesquisar os tipos dos issues pelo nome dos labels e trazer o primeiro ordenado pelo order crescente 
         issueType = IssueType.objects.filter(project=self.project, name__in=labels).order_by('order').first()
 
-        # print ('\nIssuetype:' + issueType.name)
-
-        # raise ActionSyntaxException(str(labels))            
-        
-        print (str(issueType))
-
-        print (issueType)
-
         for issue in list(issues):
-            issue.tags = labels # pesquisar como salvar tags (Testar) 
+            issue.tags = labels 
             issue.type = issueType
             issue.save()
 
