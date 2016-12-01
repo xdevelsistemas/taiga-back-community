@@ -76,7 +76,6 @@ DEFAULTS = {
     # Base API policies
     "DEFAULT_RENDERER_CLASSES": (
         "taiga.base.api.renderers.JSONRenderer",
-        "taiga.base.api.renderers.BrowsableAPIRenderer",
     ),
     "DEFAULT_PARSER_CLASSES": (
         "taiga.base.api.parsers.JSONParser",
@@ -98,6 +97,8 @@ DEFAULTS = {
     # Genric view behavior
     "DEFAULT_MODEL_SERIALIZER_CLASS":
         "taiga.base.api.serializers.ModelSerializer",
+    "DEFAULT_MODEL_VALIDATOR_CLASS":
+        "taiga.base.api.validators.ModelValidator",
     "DEFAULT_FILTER_BACKENDS": (),
 
     # Throttling

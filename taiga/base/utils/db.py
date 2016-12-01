@@ -17,14 +17,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
+from django.db import DatabaseError
 from django.db import transaction
 from django.shortcuts import _get_queryset
-
-from django_pglocks import advisory_lock
 
 from . import functions
 
 import re
+
 
 def get_object_or_none(klass, *args, **kwargs):
     """
@@ -43,7 +44,7 @@ def get_object_or_none(klass, *args, **kwargs):
         return None
 
 
-def get_typename_for_model_class(model:object, for_concrete_model=True) -> str:
+def get_typename_for_model_class(model: object, for_concrete_model=True) -> str:
     """
     Get typename for model instance.
     """
@@ -81,6 +82,7 @@ def save_in_bulk(instances, callback=None, precall=None, **save_options):
     :params callback: Callback to call after each save.
     :params save_options: Additional options to use when saving each instance.
     """
+    ret = []
     if callback is None:
         callback = functions.noop
 
@@ -95,6 +97,8 @@ def save_in_bulk(instances, callback=None, precall=None, **save_options):
         precall(instance)
         instance.save(**save_options)
         callback(instance, created=created)
+
+    return ret
 
 
 @transaction.atomic
@@ -119,19 +123,43 @@ def update_in_bulk(instances, list_of_new_values, callback=None, precall=None):
         callback(instance)
 
 
-def update_in_bulk_with_ids(ids, list_of_new_values, model):
+@transaction.atomic
+def update_attr_in_bulk_for_ids(values, attr, model):
     """Update a table using a list of ids.
 
-    :params ids: List of ids.
-    :params new_values: List of dicts or duples where each dict/duple is the new data corresponding
-    to the instance in the same index position as the dict.
-    :param model: Model of the ids.
+    :params values: Dict of new values where the key is the pk of the element to update.
+    :params attr: attr to update
+    :params model: Model of the ids.
     """
-    tn = get_typename_for_model_class(model)
-    for id, new_values in zip(ids, list_of_new_values):
-        key = "{0}:{1}".format(tn, id)
-        with advisory_lock(key) as acquired_key_lock:
-            model.objects.filter(id=id).update(**new_values)
+    if not values:
+        return
+
+    values = [str((id, order)) for id, order in values.items()]
+    sql = """
+        UPDATE "{tbl}"
+        SET "{attr}"=update_values.column2
+        FROM (
+          VALUES
+            {values}
+        ) AS update_values
+        WHERE "{tbl}"."id"=update_values.column1;
+    """.format(tbl=model._meta.db_table,
+               values=', '.join(values),
+               attr=attr)
+
+    cursor = connection.cursor()
+
+    # We can have deadlocks with multiple updates over the same object
+    # In that situation we just retry
+    def _run_sql(retries=0, max_retries=3):
+        try:
+            cursor.execute(sql)
+        except DatabaseError:
+            print("retries", 0)
+            if retries < max_retries:
+                _run_sql(retries + 1)
+
+    transaction.on_commit(_run_sql)
 
 
 def to_tsquery(term):
@@ -214,10 +242,10 @@ def to_tsquery(term):
             if not bit:
                 continue
 
-            if bit.startswith('"') and bit.endswith('"') and len(bit)>2:
+            if bit.startswith('"') and bit.endswith('"') and len(bit) > 2:
                 res.append(bit.replace('"', "'"))
             else:
-                res.append("'%s':*" %(bit.replace("'", ""), ))
+                res.append("'%s':*" % (bit.replace("'", ""), ))
 
             res.append("&")
 

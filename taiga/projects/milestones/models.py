@@ -16,9 +16,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from django.apps import apps
 from django.db import models
-from django.db.models import Prefetch, Count
+from django.db.models import Count
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
@@ -28,7 +27,6 @@ from django.utils.functional import cached_property
 from taiga.base.utils.slug import slugify_uniquely
 from taiga.base.utils.dicts import dict_sum
 from taiga.projects.notifications.mixins import WatchedModelMixin
-from taiga.projects.userstories.models import UserStory
 
 import itertools
 import datetime
@@ -85,7 +83,6 @@ class Milestone(WatchedModelMixin, models.Model):
             self.modified_date = timezone.now()
         if not self.slug:
             self.slug = slugify_uniquely(self.name, self.__class__)
-
         super().save(*args, **kwargs)
 
     @cached_property
@@ -123,18 +120,22 @@ class Milestone(WatchedModelMixin, models.Model):
                 user_stories[us.id] = us
 
             tasks = self.tasks.\
-                    select_related("user_story").\
-                    exclude(finished_date__isnull=True).\
-                    exclude(user_story__isnull=True)
+                select_related("user_story").\
+                exclude(finished_date__isnull=True).\
+                exclude(user_story__isnull=True)
 
             # For each finished task we try to know the proporional part of points
             # it represetnts from the user story and add it to the closed points
             # for that date
             # This calulation is the total user story points divided by its number of tasks
             for task in tasks:
-                user_story = user_stories[task.user_story.id]
-                total_us_points = user_story._total_us_points
-                us_tasks_counter = user_story.num_tasks
+                user_story = user_stories.get(task.user_story.id, None)
+                if user_story is None:
+                    total_us_points = 0
+                    us_tasks_counter = 0
+                else:
+                    total_us_points = user_story._total_us_points
+                    us_tasks_counter = user_story.num_tasks
 
                 # If the task was finished before starting the sprint it needs
                 # to be included
@@ -143,7 +144,9 @@ class Milestone(WatchedModelMixin, models.Model):
                     finished_date = self.estimated_start
 
                 points_by_date = self._total_closed_points_by_date.get(finished_date, 0)
-                points_by_date += total_us_points / us_tasks_counter
+                if us_tasks_counter != 0:
+                    points_by_date += total_us_points / us_tasks_counter
+
                 self._total_closed_points_by_date[finished_date] = points_by_date
 
             # At this point self._total_closed_points_by_date keeps a dict where the

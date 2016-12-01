@@ -22,10 +22,12 @@ import requests
 from requests.exceptions import RequestException
 
 from taiga.base.api.renderers import UnicodeJSONRenderer
+from taiga.base.utils import json
 from taiga.base.utils.db import get_typename_for_model_instance
 from taiga.celery import app
 
-from .serializers import (UserStorySerializer, IssueSerializer, TaskSerializer,
+from .serializers import (EpicSerializer, EpicRelatedUserStorySerializer,
+                          UserStorySerializer, IssueSerializer, TaskSerializer,
                           WikiPageSerializer, MilestoneSerializer,
                           HistoryEntrySerializer, UserSerializer)
 from .models import WebhookLog
@@ -33,8 +35,11 @@ from .models import WebhookLog
 
 def _serialize(obj):
     content_type = get_typename_for_model_instance(obj)
-
-    if content_type == "userstories.userstory":
+    if content_type == "epics.epic":
+        return EpicSerializer(obj).data
+    elif content_type == "epics.relateduserstory":
+        return EpicRelatedUserStorySerializer(obj).data
+    elif content_type == "userstories.userstory":
         return UserStorySerializer(obj).data
     elif content_type == "issues.issue":
         return IssueSerializer(obj).data
@@ -62,7 +67,8 @@ def _send_request(webhook_id, url, key, data):
     serialized_data = UnicodeJSONRenderer().render(data)
     signature = _generate_signature(serialized_data, key)
     headers = {
-        "X-TAIGA-WEBHOOK-SIGNATURE": signature,
+        "X-TAIGA-WEBHOOK-SIGNATURE": signature,        # For backward compatibility
+        "X-Hub-Signature": "sha1={}".format(signature),
         "Content-Type": "application/json"
     }
     request = requests.Request('POST', url, data=serialized_data, headers=headers)
@@ -81,11 +87,14 @@ def _send_request(webhook_id, url, key, data):
                                                     duration=0)
         else:
             # Webhook was sent successfully
+
+            # response.content can be a not valid json so we encapsulate it
+            response_data = json.dumps({"content": response.text})
             webhook_log = WebhookLog.objects.create(webhook_id=webhook_id, url=url,
                                                     status=response.status_code,
                                                     request_data=data,
                                                     request_headers=dict(prepared_request.headers),
-                                                    response_data=response.content,
+                                                    response_data=response_data,
                                                     response_headers=dict(response.headers),
                                                     duration=response.elapsed.total_seconds())
         finally:
@@ -149,5 +158,4 @@ def test_webhook(webhook_id, url, key, by, date):
     data['by'] = UserSerializer(by).data
     data['date'] = date
     data['data'] = {"test": "test"}
-
     return _send_request(webhook_id, url, key, data)

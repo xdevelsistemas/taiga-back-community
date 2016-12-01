@@ -18,13 +18,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.db.models import F
-from django.db.transaction import atomic
+from django.db import transaction as tx
+
 from django.apps import apps
 from django.contrib.auth import get_user_model
+
+from django_pglocks import advisory_lock
 
 from .models import Votes, Vote
 
 
+@tx.atomic
 def add_vote(obj, user):
     """Add a vote to an object.
 
@@ -35,7 +39,7 @@ def add_vote(obj, user):
     :param user: User adding the vote. :class:`~taiga.users.models.User` instance.
     """
     obj_type = apps.get_model("contenttypes", "ContentType").objects.get_for_model(obj)
-    with atomic():
+    with advisory_lock("vote-{}-{}".format(obj_type.id, obj.id)):
         vote, created = Vote.objects.get_or_create(content_type=obj_type, object_id=obj.id, user=user)
         if not created:
             return
@@ -43,9 +47,10 @@ def add_vote(obj, user):
         votes, _ = Votes.objects.get_or_create(content_type=obj_type, object_id=obj.id)
         votes.count = F('count') + 1
         votes.save()
-    return vote
+        return vote
 
 
+@tx.atomic
 def remove_vote(obj, user):
     """Remove an user vote from an object.
 
@@ -56,16 +61,16 @@ def remove_vote(obj, user):
     :param user: User removing her vote. :class:`~taiga.users.models.User` instance.
     """
     obj_type = apps.get_model("contenttypes", "ContentType").objects.get_for_model(obj)
-    with atomic():
+    with advisory_lock("vote-{}-{}".format(obj_type.id, obj.id)):
         qs = Vote.objects.filter(content_type=obj_type, object_id=obj.id, user=user)
         if not qs.exists():
             return
 
-        qs.delete()
+    qs.delete()
 
-        votes, _ = Votes.objects.get_or_create(content_type=obj_type, object_id=obj.id)
-        votes.count = F('count') - 1
-        votes.save()
+    votes, _ = Votes.objects.get_or_create(content_type=obj_type, object_id=obj.id)
+    votes.count = F('count') - 1
+    votes.save()
 
 
 def get_voters(obj):

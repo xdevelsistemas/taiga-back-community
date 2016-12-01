@@ -36,7 +36,7 @@ from taiga.projects.history.choices import HistoryType
 from taiga.projects.history.services import (make_key_from_model_object,
                                              get_last_snapshot_for_key,
                                              get_model_from_key)
-from taiga.permissions.service import user_has_perm
+from taiga.permissions.services import user_has_perm
 
 from .models import HistoryChangeNotification, Watched
 
@@ -72,14 +72,14 @@ def create_notify_policy_if_not_exists(project, user, level=NotifyLevel.involved
     model_cls = apps.get_model("notifications", "NotifyPolicy")
     try:
         result = model_cls.objects.get_or_create(project=project,
-                                               user=user,
-                                               defaults={"notify_level": level})
+                                                 user=user,
+                                                 defaults={"notify_level": level})
         return result[0]
     except IntegrityError as e:
         raise exc.IntegrityError(_("Notify exists for specified user and project")) from e
 
 
-def analize_object_for_watchers(obj:object, comment:str, user:object):
+def analize_object_for_watchers(obj: object, comment: str, user: object):
     """
     Generic implementation for analize model objects and
     extract mentions from it and add it to watchers.
@@ -90,7 +90,6 @@ def analize_object_for_watchers(obj:object, comment:str, user:object):
 
     if not hasattr(obj, "add_watcher"):
         return
-
 
     texts = (getattr(obj, "description", ""),
              getattr(obj, "content", ""),
@@ -112,6 +111,7 @@ def _filter_by_permissions(obj, user):
     UserStory = apps.get_model("userstories", "UserStory")
     Issue = apps.get_model("issues", "Issue")
     Task = apps.get_model("tasks", "Task")
+    Epic = apps.get_model("epics", "Epic")
     WikiPage = apps.get_model("wiki", "WikiPage")
 
     if isinstance(obj, UserStory):
@@ -120,6 +120,8 @@ def _filter_by_permissions(obj, user):
         return user_has_perm(user, "view_issues", obj, cache="project")
     elif isinstance(obj, Task):
         return user_has_perm(user, "view_tasks", obj, cache="project")
+    elif isinstance(obj, Epic):
+        return user_has_perm(user, "view_epics", obj, cache="project")
     elif isinstance(obj, WikiPage):
         return user_has_perm(user, "view_wiki_pages", obj, cache="project")
     return False
@@ -129,7 +131,7 @@ def _filter_notificable(user):
     return user.is_active and not user.is_system
 
 
-def get_users_to_notify(obj, *, discard_users=None) -> list:
+def get_users_to_notify(obj, *, history=None, discard_users=None) -> list:
     """
     Get filtered set of users to notify for specified
     model instance and changer.
@@ -139,7 +141,7 @@ def get_users_to_notify(obj, *, discard_users=None) -> list:
     """
     project = obj.get_project()
 
-    def _check_level(project:object, user:object, levels:tuple) -> bool:
+    def _check_level(project: object, user: object, levels: tuple) -> bool:
         policy = project.cached_notify_policy_for_user(user)
         return policy.notify_level in levels
 
@@ -154,17 +156,25 @@ def get_users_to_notify(obj, *, discard_users=None) -> list:
     candidates.update(filter(_can_notify_light, obj.get_watchers()))
     candidates.update(filter(_can_notify_light, obj.get_participants()))
 
+    # If the history is an unassignment change we should notify that user too
+    if history and history.type == HistoryType.change and "assigned_to" in history.diff:
+        assigned_to_users = get_user_model().objects.filter(id__in=history.diff["assigned_to"])
+        candidates.update(filter(_can_notify_light, assigned_to_users))
+
     # Remove the changer from candidates
     if discard_users:
         candidates = candidates - set(discard_users)
 
+    # Filter by object permissions
     candidates = set(filter(partial(_filter_by_permissions, obj), candidates))
+
     # Filter disabled and system users
     candidates = set(filter(partial(_filter_notificable), candidates))
+
     return frozenset(candidates)
 
 
-def _resolve_template_name(model:object, *, change_type:int) -> str:
+def _resolve_template_name(model: object, *, change_type: int) -> str:
     """
     Ginven an changed model instance and change type,
     return the preformated template name for it.
@@ -184,7 +194,7 @@ def _resolve_template_name(model:object, *, change_type:int) -> str:
                        change=change_type)
 
 
-def _make_template_mail(name:str):
+def _make_template_mail(name: str):
     """
     Helper that creates a adhoc djmail template email
     instance for specified name, and return an instance
@@ -208,7 +218,7 @@ def send_notifications(obj, *, history):
                              .get_or_create(key=key,
                                             owner=owner,
                                             project=obj.project,
-                                            history_type = history.type))
+                                            history_type=history.type))
 
     notification.updated_datetime = timezone.now()
     notification.save()
@@ -216,12 +226,13 @@ def send_notifications(obj, *, history):
 
     # Get a complete list of notifiable users for current
     # object and send the change notification to them.
-    notify_users = get_users_to_notify(obj, discard_users=[notification.owner])
+    notify_users = get_users_to_notify(obj, history=history, discard_users=[notification.owner])
     notification.notify_users.add(*notify_users)
 
     # If we are the min interval is 0 it just work in a synchronous and spamming way
     if settings.CHANGE_NOTIFICATIONS_MIN_INTERVAL == 0:
         send_sync_notifications(notification.id)
+
 
 @transaction.atomic
 def send_sync_notifications(notification_id):
@@ -261,19 +272,21 @@ def send_sync_notifications(notification_id):
         msg_id = 'taiga-system'
 
     now = datetime.datetime.now()
-    format_args = {"project_slug": notification.project.slug,
-                   "project_name": notification.project.name,
-                   "msg_id": msg_id,
-                   "time": int(now.timestamp()),
-                   "domain": domain}
+    format_args = {
+        "project_slug": notification.project.slug,
+        "project_name": notification.project.name,
+        "msg_id": msg_id,
+        "time": int(now.timestamp()),
+        "domain": domain
+    }
 
-    headers = {"Message-ID": "<{project_slug}/{msg_id}/{time}@{domain}>".format(**format_args),
-               "In-Reply-To": "<{project_slug}/{msg_id}@{domain}>".format(**format_args),
-               "References": "<{project_slug}/{msg_id}@{domain}>".format(**format_args),
-
-               "List-ID": 'Taiga/{project_name} <taiga.{project_slug}@{domain}>'.format(**format_args),
-
-               "Thread-Index": make_ms_thread_index("<{project_slug}/{msg_id}@{domain}>".format(**format_args), now)}
+    headers = {
+        "Message-ID": "<{project_slug}/{msg_id}/{time}@{domain}>".format(**format_args),
+        "In-Reply-To": "<{project_slug}/{msg_id}@{domain}>".format(**format_args),
+        "References": "<{project_slug}/{msg_id}@{domain}>".format(**format_args),
+        "List-ID": 'Taiga/{project_name} <taiga.{project_slug}@{domain}>'.format(**format_args),
+        "Thread-Index": make_ms_thread_index("<{project_slug}/{msg_id}@{domain}>".format(**format_args), now)
+    }
 
     for user in notification.notify_users.distinct():
         context["user"] = user
@@ -330,6 +343,7 @@ def get_related_people(obj):
     related_people = related_people.exclude(is_active=False)
     related_people = related_people.exclude(is_system=True)
     related_people = related_people.distinct()
+
     return related_people
 
 
@@ -370,8 +384,10 @@ def get_projects_watched(user_or_id):
         user = get_user_model().objects.get(id=user_or_id)
 
     project_class = apps.get_model("projects", "Project")
-    project_ids = user.notify_policies.exclude(notify_level=NotifyLevel.none).values_list("project__id", flat=True)
+    project_ids = (user.notify_policies.exclude(notify_level=NotifyLevel.none)
+                                       .values_list("project__id", flat=True))
     return project_class.objects.filter(id__in=project_ids)
+
 
 def add_watcher(obj, user):
     """Add a watcher to an object.
@@ -383,8 +399,11 @@ def add_watcher(obj, user):
     :param user: User adding the watch. :class:`~taiga.users.models.User` instance.
     """
     obj_type = apps.get_model("contenttypes", "ContentType").objects.get_for_model(obj)
-    watched, created = Watched.objects.get_or_create(content_type=obj_type,
-        object_id=obj.id, user=user, project=obj.project)
+    watched, created = Watched.objects.get_or_create(
+        content_type=obj_type,
+        object_id=obj.id,
+        user=user,
+        project=obj.project)
 
     notify_policy, _ = apps.get_model("notifications", "NotifyPolicy").objects.get_or_create(
         project=obj.project, user=user, defaults={"notify_level": NotifyLevel.involved})
@@ -413,7 +432,7 @@ def set_notify_policy_level(notify_policy, notify_level):
     """
     Set notification level for specified policy.
     """
-    if not notify_level in [e.value for e in NotifyLevel]:
+    if notify_level not in [e.value for e in NotifyLevel]:
         raise exc.IntegrityError(_("Invalid value for notify level"))
 
     notify_policy.notify_level = notify_level
